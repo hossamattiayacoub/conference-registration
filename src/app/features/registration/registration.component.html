@@ -1,0 +1,244 @@
+<div class="page">
+  <header class="hero">
+    <div class="hero__pattern" aria-hidden="true"></div>
+    <div class="hero__content">
+      <span class="hero__eyebrow">تسجيل الحضور</span>
+      <h1 class="hero__title">استمارة تسجيل المؤتمر</h1>
+      <p class="hero__subtitle">من فضلك أدخل بياناتك بدقة، سيتم استخدامها لتأكيد حجزك وإصدار بطاقة الدخول</p>
+    </div>
+  </header>
+
+  <main class="card">
+    <!-- Alerts -->
+    <div class="alert" [class.alert--success]="alert()?.type === 'success'"
+         [class.alert--error]="alert()?.type === 'error'"
+         [class.alert--info]="alert()?.type === 'info'"
+         *ngIf="alert() as a">
+      <span class="alert__text">{{ a.message }}</span>
+      <button type="button" class="alert__load" *ngIf="duplicateId()" (click)="loadDuplicateRegistration()" [disabled]="isLoadingRecord()">
+        {{ isLoadingRecord() ? 'جارِ التحميل...' : 'تحميل بيانات التسجيل الحالي' }}
+      </button>
+      <button type="button" class="alert__dismiss" (click)="dismissAlert()" aria-label="إغلاق">×</button>
+    </div>
+
+    <form class="form" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+
+      <!-- SECTION 1: Name -->
+      <section class="section">
+        <h2 class="section__title"><span class="section__badge">01</span> البيانات الشخصية</h2>
+        <div class="grid grid--4">
+          <div class="field">
+            <label for="firstName">الاسم الأول <span class="required">*</span></label>
+            <input id="firstName" type="text" formControlName="firstName" placeholder="الاسم الأول" [class.invalid]="errorFor('firstName')">
+            <small class="error" *ngIf="errorFor('firstName')">{{ errorFor('firstName') }}</small>
+          </div>
+          <div class="field">
+            <label for="secondName">اسم الأب <span class="required">*</span></label>
+            <input id="secondName" type="text" formControlName="secondName" placeholder="اسم الأب" [class.invalid]="errorFor('secondName')">
+            <small class="error" *ngIf="errorFor('secondName')">{{ errorFor('secondName') }}</small>
+          </div>
+          <div class="field">
+            <label for="thirdName">اسم الجد <span class="required">*</span></label>
+            <input id="thirdName" type="text" formControlName="thirdName" placeholder="اسم الجد" [class.invalid]="errorFor('thirdName')">
+            <small class="error" *ngIf="errorFor('thirdName')">{{ errorFor('thirdName') }}</small>
+          </div>
+          <div class="field">
+            <label for="fourthName">اسم العائلة <span class="required">*</span></label>
+            <input id="fourthName" type="text" formControlName="fourthName" placeholder="اسم العائلة" [class.invalid]="errorFor('fourthName')">
+            <small class="error" *ngIf="errorFor('fourthName')">{{ errorFor('fourthName') }}</small>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION 2: Contact -->
+      <section class="section">
+        <h2 class="section__title"><span class="section__badge">02</span> بيانات التواصل</h2>
+        <div class="grid grid--2">
+          <div class="field field--with-action">
+            <label for="mobile">رقم الموبايل <span class="required">*</span></label>
+            <div class="field__row">
+              <input id="mobile" type="tel" formControlName="mobile" placeholder="01xxxxxxxxx" [class.invalid]="errorFor('mobile')">
+              <button type="button" class="btn btn--ghost" (click)="searchByMobile()" [disabled]="isSearching()">
+                {{ isSearching() ? 'جارِ البحث...' : 'بحث' }}
+              </button>
+            </div>
+            <small class="error" *ngIf="errorFor('mobile')">{{ errorFor('mobile') }}</small>
+            <small class="hint">ابحث برقم الموبايل لتحميل تسجيل سابق وتعديله</small>
+          </div>
+          <div class="field">
+            <label for="nationalId">الرقم القومي <span class="required">*</span></label>
+            <input id="nationalId" type="text" inputmode="numeric" maxlength="14" formControlName="nationalId" placeholder="14 رقم" [class.invalid]="errorFor('nationalId')">
+            <small class="error" *ngIf="errorFor('nationalId')">{{ errorFor('nationalId') }}</small>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION 3: Gender -->
+      <section class="section">
+        <h2 class="section__title"><span class="section__badge">03</span> النوع</h2>
+        <div class="radio-row">
+          <label class="radio-card" *ngFor="let option of genderOptions">
+            <input type="radio" formControlName="gender" [value]="option.value">
+            <span>{{ option.label }}</span>
+          </label>
+        </div>
+        <small class="error" *ngIf="errorFor('gender')">{{ errorFor('gender') }}</small>
+      </section>
+
+      <!-- SECTION 4/5: Job & Diocese -->
+      <section class="section">
+        <h2 class="section__title"><span class="section__badge">04</span> الوظيفة والأبرشية</h2>
+        <div class="grid grid--2">
+          <div class="field">
+            <label for="job">الوظيفة</label>
+            <input id="job" type="text" formControlName="job" placeholder="الوظيفة (اختياري)">
+          </div>
+          <div class="field">
+            <label for="diocese">الأبرشية <span class="required">*</span></label>
+            <input id="diocese" type="text" formControlName="diocese" placeholder="اسم الأبرشية" [class.invalid]="errorFor('diocese')">
+            <small class="error" *ngIf="errorFor('diocese')">{{ errorFor('diocese') }}</small>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION 6: Attendance days -->
+      <section class="section">
+        <h2 class="section__title"><span class="section__badge">05</span> أيام الحضور</h2>
+        <div class="radio-list">
+          <label class="radio-card radio-card--wide" *ngFor="let option of attendanceDaysOptions">
+            <input type="radio" formControlName="attendanceDays" [value]="option">
+            <span>{{ option }}</span>
+          </label>
+        </div>
+        <small class="error" *ngIf="errorFor('attendanceDays')">{{ errorFor('attendanceDays') }}</small>
+      </section>
+
+      <!-- SECTION 7: Conference booking -->
+      <section class="section">
+        <h2 class="section__title"><span class="section__badge">06</span> حجز المؤتمر</h2>
+        <div class="radio-row">
+          <label class="radio-card" *ngFor="let option of conferenceBookingOptions">
+            <input type="radio" formControlName="conferenceBooking" [value]="option.value">
+            <span>{{ option.label }}</span>
+          </label>
+        </div>
+        <small class="error" *ngIf="errorFor('conferenceBooking')">{{ errorFor('conferenceBooking') }}</small>
+
+        <div class="payment-fields" *ngIf="showPaymentFields">
+          <div class="field">
+            <label>طريقة الدفع <span class="required">*</span></label>
+            <div class="radio-row">
+              <label class="radio-card" *ngFor="let method of paymentMethodOptions">
+                <input type="radio" formControlName="paymentMethod" [value]="method">
+                <span>{{ method }}</span>
+              </label>
+            </div>
+            <small class="error" *ngIf="errorFor('paymentMethod')">{{ errorFor('paymentMethod') }}</small>
+          </div>
+
+          <div class="field">
+            <label>مبلغ الدفع <span class="required">*</span></label>
+            <div class="radio-row radio-row--wrap">
+              <label class="radio-card" *ngFor="let amount of paymentAmountOptions">
+                <input type="radio" formControlName="paymentAmount" [value]="amount">
+                <span>{{ amount }} جنيه</span>
+              </label>
+            </div>
+            <small class="error" *ngIf="errorFor('paymentAmount')">{{ errorFor('paymentAmount') }}</small>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION 8: Servant -->
+      <section class="section">
+        <h2 class="section__title"><span class="section__badge">07</span> الخادم المسؤول</h2>
+        <div class="radio-list">
+          <label class="radio-card radio-card--wide" *ngFor="let servant of servantOptions">
+            <input type="radio" formControlName="servantName" [value]="servant">
+            <span>{{ servant }}</span>
+          </label>
+        </div>
+        <small class="error" *ngIf="errorFor('servantName')">{{ errorFor('servantName') }}</small>
+      </section>
+
+      <!-- SECTION 9: ID Images -->
+      <section class="section">
+        <h2 class="section__title"><span class="section__badge">08</span> صور البطاقة الشخصية</h2>
+        <div class="grid grid--2">
+          <div class="upload-box">
+            <span class="upload-box__label">صورة البطاقة الأمامية <span class="required">*</span></span>
+            <div class="upload-box__area">
+              <img *ngIf="previews.frontIdImage" [src]="previews.frontIdImage" alt="معاينة صورة البطاقة الأمامية">
+              <label class="upload-box__cta" *ngIf="!previews.frontIdImage">
+                <input type="file" accept="image/png,image/jpeg,image/webp" (change)="onFileSelected($event, 'frontIdImage')" hidden>
+                اختر صورة
+              </label>
+            </div>
+            <div class="upload-box__actions" *ngIf="previews.frontIdImage">
+              <label class="btn btn--ghost btn--sm">
+                تغيير الصورة
+                <input type="file" accept="image/png,image/jpeg,image/webp" (change)="onFileSelected($event, 'frontIdImage')" hidden>
+              </label>
+              <button type="button" class="btn btn--danger-ghost btn--sm" (click)="removeImage('frontIdImage')">إزالة</button>
+            </div>
+            <small class="error" *ngIf="errorFor('frontIdImage')">{{ errorFor('frontIdImage') }}</small>
+          </div>
+
+          <div class="upload-box">
+            <span class="upload-box__label">صورة البطاقة الخلفية <span class="required">*</span></span>
+            <div class="upload-box__area">
+              <img *ngIf="previews.backIdImage" [src]="previews.backIdImage" alt="معاينة صورة البطاقة الخلفية">
+              <label class="upload-box__cta" *ngIf="!previews.backIdImage">
+                <input type="file" accept="image/png,image/jpeg,image/webp" (change)="onFileSelected($event, 'backIdImage')" hidden>
+                اختر صورة
+              </label>
+            </div>
+            <div class="upload-box__actions" *ngIf="previews.backIdImage">
+              <label class="btn btn--ghost btn--sm">
+                تغيير الصورة
+                <input type="file" accept="image/png,image/jpeg,image/webp" (change)="onFileSelected($event, 'backIdImage')" hidden>
+              </label>
+              <button type="button" class="btn btn--danger-ghost btn--sm" (click)="removeImage('backIdImage')">إزالة</button>
+            </div>
+            <small class="error" *ngIf="errorFor('backIdImage')">{{ errorFor('backIdImage') }}</small>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION 10: Personal photo -->
+      <section class="section">
+        <h2 class="section__title"><span class="section__badge">09</span> الصورة الشخصية</h2>
+        <div class="personal-photo">
+          <div class="personal-photo__circle">
+            <img *ngIf="previews.personalPhoto" [src]="previews.personalPhoto" alt="معاينة الصورة الشخصية">
+            <span *ngIf="!previews.personalPhoto" class="personal-photo__placeholder">＋</span>
+          </div>
+          <label class="btn btn--primary btn--sm">
+            {{ previews.personalPhoto ? 'تغيير الصورة' : 'رفع صورة شخصية' }}
+            <input type="file" accept="image/png,image/jpeg,image/webp" (change)="onFileSelected($event, 'personalPhoto')" hidden>
+          </label>
+          <small class="error" *ngIf="errorFor('personalPhoto')">{{ errorFor('personalPhoto') }}</small>
+        </div>
+      </section>
+
+      <!-- SECTION 11: Notes -->
+      <section class="section">
+        <h2 class="section__title"><span class="section__badge">10</span> ملاحظات</h2>
+        <div class="field">
+          <textarea formControlName="notes" rows="4" placeholder="أي ملاحظات إضافية (اختياري)"></textarea>
+        </div>
+      </section>
+
+      <!-- Actions -->
+      <div class="actions">
+        <button type="submit" class="btn btn--primary btn--lg" [disabled]="isSubmitting() || form.invalid">
+          <span class="spinner" *ngIf="isSubmitting()"></span>
+          {{ isSubmitting() ? 'جارِ الإرسال...' : 'إرسال' }}
+        </button>
+        <button type="button" class="btn btn--ghost btn--lg" (click)="resetForm()" [disabled]="isSubmitting()">
+          مسح البيانات
+        </button>
+      </div>
+    </form>
+  </main>
+</div>
