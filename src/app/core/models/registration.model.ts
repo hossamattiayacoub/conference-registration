@@ -18,8 +18,39 @@ export const ATTENDANCE_DAYS_OPTIONS: string[] = [
   'يوم واحد بدون مواصلات'
 ];
 
+/**
+ * Shown only when AttendanceDays === 'الجمعة والسبت بدون مواصلات'.
+ * English values are what gets saved to the sheet; Arabic labels are shown in the UI.
+ */
+export type TransportationType = 'Private Car' | 'Public Transportation' | '';
+
+export const TRANSPORTATION_TYPE_OPTIONS: { value: TransportationType; label: string }[] = [
+  { value: 'Private Car', label: 'سيارة خاصة' },
+  { value: 'Public Transportation', label: 'مواصلات عامة' }
+];
+
+/**
+ * Shown only when AttendanceDays === 'يوم واحد بدون مواصلات'.
+ * English values are what gets saved to the sheet; Arabic labels are shown in the UI.
+ */
+export type AttendanceDay = 'Friday' | 'Saturday' | '';
+
+export const ATTENDANCE_DAY_OPTIONS: { value: AttendanceDay; label: string }[] = [
+  { value: 'Friday', label: 'الجمعة' },
+  { value: 'Saturday', label: 'السبت' }
+];
+
 /** Conference booking yes/no options. */
 export const CONFERENCE_BOOKING_OPTIONS: { value: string; label: string }[] = [
+  { value: 'نعم', label: 'نعم' },
+  { value: 'لا', label: 'لا' }
+];
+
+/**
+ * "هل انت متزوج وزوجك / تك حجزت معك المؤتمر؟" - shown when AttendanceDays is
+ * 'الجمعة والسبت بالمواصلات' or 'الجمعة والسبت بدون مواصلات'.
+ */
+export const MARRIED_SPOUSE_BOOKED_OPTIONS: { value: string; label: string }[] = [
   { value: 'نعم', label: 'نعم' },
   { value: 'لا', label: 'لا' }
 ];
@@ -44,6 +75,16 @@ export const SERVANT_OPTIONS: string[] = [
 ];
 
 /**
+ * A person already registered, offered as an option in the accommodation
+ * ("التسكين: اختار أفراد الأسرة") dropdown. Loaded dynamically from the
+ * Registeration sheet via the "getMembers" API action.
+ */
+export interface FamilyMemberOption {
+  id: string;
+  fullName: string;
+}
+
+/**
  * Full registration record as stored in / returned from the Registeration sheet.
  */
 export interface Registration {
@@ -58,6 +99,9 @@ export interface Registration {
   Job?: string;
   Diocese: string;
   AttendanceDays: string;
+  TransportationType?: string;
+  AttendanceDay?: string;
+  MarriedAndYourSpousebookInConference?: string;
   ConferenceBooking: string;
   PaymentMethod?: string;
   PaymentAmount?: number | null;
@@ -70,6 +114,7 @@ export interface Registration {
   PersonalPhotoFileUrl?: string;
   Notes?: string;
   NationalId: string;
+  AccommodationFamilyMemberId?: string | null;
   CreatedAt?: string;
   UpdatedAt?: string;
 }

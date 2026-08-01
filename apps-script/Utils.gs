@@ -30,16 +30,48 @@ function getRegistrationSheet_() {
 }
 
 /**
- * Writes the header row if the sheet is currently empty.
- * Safe to call repeatedly - it is a no-op once headers exist.
+ * Writes the header row if the sheet is currently empty. If the sheet
+ * already has data (e.g. it predates TransportationType/AttendanceDay/
+ * AccommodationFamilyMemberId), any headers from CONFIG.HEADERS that are
+ * missing are appended as new columns to the right - existing columns and
+ * existing rows are never reordered, renamed or overwritten.
  */
 function createHeadersIfNeeded() {
   const sheet = getRegistrationSheet_();
   if (sheet.getLastRow() === 0) {
     sheet.getRange(1, 1, 1, CONFIG.HEADERS.length).setValues([CONFIG.HEADERS]);
     sheet.setFrozenRows(1);
+  } else {
+    ensureColumnsExist_(sheet);
   }
   return sheet;
+}
+
+/**
+ * Appends any header from CONFIG.HEADERS that is not yet present in the
+ * sheet as a brand-new column at the end. Safe to call repeatedly - it is
+ * a no-op once every configured column already exists.
+ */
+function ensureColumnsExist_(sheet) {
+  const lastCol = sheet.getLastColumn();
+  if (lastCol === 0) {
+    return;
+  }
+  const existingHeaders = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+  const existingHeaderSet = {};
+  existingHeaders.forEach(function (name) {
+    if (name) {
+      existingHeaderSet[name] = true;
+    }
+  });
+
+  const missingHeaders = CONFIG.HEADERS.filter(function (header) {
+    return !existingHeaderSet[header];
+  });
+
+  if (missingHeaders.length > 0) {
+    sheet.getRange(1, lastCol + 1, 1, missingHeaders.length).setValues([missingHeaders]);
+  }
 }
 
 /**
@@ -79,13 +111,30 @@ function rowToRegistration_(row, headerMap) {
 }
 
 /**
- * Converts a registration object into a full row array matching CONFIG.HEADERS order.
+ * Converts a registration object into a row array sized and positioned to
+ * match the sheet's *actual* physical column layout (headerMap), not just
+ * the order columns happen to appear in CONFIG.HEADERS. This matters
+ * because ensureColumnsExist_ appends new columns to the right of whatever
+ * already exists, so a migrated sheet's physical order can differ from
+ * CONFIG.HEADERS order - writing positionally by CONFIG.HEADERS order alone
+ * would silently put values in the wrong columns on such a sheet.
  */
-function registrationToRow_(record) {
-  return CONFIG.HEADERS.map(function (header) {
+function registrationToRow_(record, headerMap) {
+  const columnCount = Object.keys(headerMap).reduce(function (max, key) {
+    return Math.max(max, headerMap[key]);
+  }, -1) + 1;
+  const row = new Array(Math.max(columnCount, CONFIG.HEADERS.length)).fill('');
+
+  CONFIG.HEADERS.forEach(function (header) {
+    const index = headerMap[header];
+    if (index === undefined) {
+      return; // Column not present yet on this sheet (shouldn't happen after createHeadersIfNeeded()).
+    }
     const value = record[header];
-    return value === undefined || value === null ? '' : value;
+    row[index] = value === undefined || value === null ? '' : value;
   });
+
+  return row;
 }
 
 /**
@@ -176,6 +225,19 @@ function validateRegistration(data, isUpdate) {
     if (!data.PaymentAmount) {
       return { valid: false, message: 'مبلغ الدفع مطلوب' };
     }
+  }
+
+  if (data.AttendanceDays === 'الجمعة والسبت بدون مواصلات' && !data.TransportationType) {
+    return { valid: false, message: 'وسيلة المواصلات مطلوبة' };
+  }
+
+  if (data.AttendanceDays === 'يوم واحد بدون مواصلات' && !data.AttendanceDay) {
+    return { valid: false, message: 'يوم الحضور مطلوب' };
+  }
+
+  const marriedRequiredFor = ['الجمعة والسبت بالمواصلات', 'الجمعة والسبت بدون مواصلات'];
+  if (marriedRequiredFor.indexOf(data.AttendanceDays) !== -1 && !data.MarriedAndYourSpousebookInConference) {
+    return { valid: false, message: 'هل أنت متزوج وزوجك / زوجتك حجزت معك المؤتمر؟ مطلوب' };
   }
 
   // On create, the three identity images must be present (either a new

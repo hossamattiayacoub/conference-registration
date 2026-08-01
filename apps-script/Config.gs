@@ -47,6 +47,10 @@ const CONFIG = {
     'PersonalPhotoFileUrl',
     'Notes',
     'NationalId',
+    'TransportationType',
+    'AttendanceDay',
+    'MarriedAndYourSpousebookInConference',
+    'AccommodationFamilyMemberId',
     'CreatedAt',
     'UpdatedAt'
   ],

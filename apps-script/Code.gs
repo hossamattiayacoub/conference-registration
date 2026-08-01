@@ -24,6 +24,10 @@ function doGet(e) {
       return jsonOutput_(getRegistrationById(e.parameter.id));
     }
 
+    if (action === 'getMembers') {
+      return jsonOutput_(getMembers());
+    }
+
     return jsonOutput_(createApiResponse(false, 'إجراء غير معروف', null));
   } catch (err) {
     return jsonOutput_(createApiResponse(false, 'حدث خطأ في الخادم: ' + err.message, null));
@@ -65,6 +69,7 @@ function jsonOutput_(responseObject) {
 function createRegistration(data) {
   createHeadersIfNeeded();
   const sheet = getRegistrationSheet_();
+  const headerMap = getHeaderIndexMap_(sheet);
 
   const validation = validateRegistration(data, false);
   if (!validation.valid) {
@@ -73,8 +78,8 @@ function createRegistration(data) {
 
   const existing = findRowByMobile_(sheet, data.Mobile);
   if (existing) {
-    const headerMap = existing.headerMap;
-    const existingId = existing.row[headerMap['Id']];
+    const existingHeaderMap = existing.headerMap;
+    const existingId = existing.row[existingHeaderMap['Id']];
     return createApiResponse(false, 'يوجد تسجيل بالفعل باستخدام رقم الموبايل ده', { id: existingId });
   }
 
@@ -91,20 +96,31 @@ function createRegistration(data) {
     Job: data.Job || '',
     Diocese: data.Diocese,
     AttendanceDays: data.AttendanceDays,
+    TransportationType: data.AttendanceDays === 'الجمعة والسبت بدون مواصلات' ? data.TransportationType : '',
+    AttendanceDay: data.AttendanceDays === 'يوم واحد بدون مواصلات' ? data.AttendanceDay : '',
+    MarriedAndYourSpousebookInConference: isMarriedFieldVisible_(data.AttendanceDays)
+      ? data.MarriedAndYourSpousebookInConference
+      : '',
     ConferenceBooking: data.ConferenceBooking,
     PaymentMethod: data.ConferenceBooking === 'نعم' ? data.PaymentMethod : '',
     PaymentAmount: data.ConferenceBooking === 'نعم' ? data.PaymentAmount : '',
     ServantName: data.ServantName,
     Notes: data.Notes || '',
     NationalId: data.NationalId,
+    AccommodationFamilyMemberId: data.AccommodationFamilyMemberId || '',
     CreatedAt: now,
     UpdatedAt: now
   };
 
   attachUploadedImages_(record, data);
 
-  sheet.appendRow(registrationToRow_(record));
+  sheet.appendRow(registrationToRow_(record, headerMap));
   return createApiResponse(true, 'تم إضافة التسجيل بنجاح', record);
+}
+
+/** Whether MarriedAndYourSpousebookInConference should be shown/required for a given AttendanceDays value. */
+function isMarriedFieldVisible_(attendanceDays) {
+  return attendanceDays === 'الجمعة والسبت بالمواصلات' || attendanceDays === 'الجمعة والسبت بدون مواصلات';
 }
 
 /**
@@ -150,12 +166,18 @@ function updateRegistration(data) {
     Job: data.Job || '',
     Diocese: data.Diocese,
     AttendanceDays: data.AttendanceDays,
+    TransportationType: data.AttendanceDays === 'الجمعة والسبت بدون مواصلات' ? data.TransportationType : '',
+    AttendanceDay: data.AttendanceDays === 'يوم واحد بدون مواصلات' ? data.AttendanceDay : '',
+    MarriedAndYourSpousebookInConference: isMarriedFieldVisible_(data.AttendanceDays)
+      ? data.MarriedAndYourSpousebookInConference
+      : '',
     ConferenceBooking: data.ConferenceBooking,
     PaymentMethod: data.ConferenceBooking === 'نعم' ? data.PaymentMethod : '',
     PaymentAmount: data.ConferenceBooking === 'نعم' ? data.PaymentAmount : '',
     ServantName: data.ServantName,
     Notes: data.Notes || '',
     NationalId: data.NationalId,
+    AccommodationFamilyMemberId: data.AccommodationFamilyMemberId || '',
     FrontIdFileId: existingRecord.FrontIdFileId,
     FrontIdFileUrl: existingRecord.FrontIdFileUrl,
     BackIdFileId: existingRecord.BackIdFileId,
@@ -168,7 +190,8 @@ function updateRegistration(data) {
 
   attachUploadedImages_(record, data, existingRecord);
 
-  sheet.getRange(target.rowIndex, 1, 1, CONFIG.HEADERS.length).setValues([registrationToRow_(record)]);
+  const row = registrationToRow_(record, target.headerMap);
+  sheet.getRange(target.rowIndex, 1, 1, row.length).setValues([row]);
   return createApiResponse(true, 'تم تحديث التسجيل بنجاح', record);
 }
 
@@ -226,4 +249,42 @@ function getRegistrationById(id) {
     return createApiResponse(false, 'التسجيل غير موجود', null);
   }
   return createApiResponse(true, 'تم العثور على التسجيل', rowToRegistration_(match.row, match.headerMap));
+}
+
+/**
+ * Returns { id, fullName } for every existing registration row - used to
+ * populate the "التسكين: اختار أفراد الأسرة" accommodation dropdown.
+ * Rows without an Id are skipped; rows without a FullName are skipped too,
+ * since they would be useless/blank options in the dropdown.
+ */
+function getMembers() {
+  try {
+    const sheet = getRegistrationSheet_();
+    const headerMap = getHeaderIndexMap_(sheet);
+    const idCol = headerMap['Id'];
+    const nameCol = headerMap['FullName'];
+    const lastRow = sheet.getLastRow();
+
+    if (lastRow < 2 || idCol === undefined || nameCol === undefined) {
+      return createApiResponse(true, 'Family members loaded successfully', []);
+    }
+
+    const values = sheet.getRange(2, 1, lastRow - 1, sheet.getLastColumn()).getValues();
+    const members = [];
+    for (let i = 0; i < values.length; i++) {
+      const id = values[i][idCol];
+      const fullName = values[i][nameCol];
+      if (id && String(id).trim() !== '' && fullName && String(fullName).trim() !== '') {
+        members.push({ id: String(id).trim(), fullName: String(fullName).trim() });
+      }
+    }
+
+    members.sort(function (a, b) {
+      return a.fullName.localeCompare(b.fullName, 'ar');
+    });
+
+    return createApiResponse(true, 'Family members loaded successfully', members);
+  } catch (err) {
+    return createApiResponse(false, 'Failed to load family members', []);
+  }
 }

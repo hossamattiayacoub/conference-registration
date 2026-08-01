@@ -3,7 +3,7 @@ import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { ApiResponse } from '../models/api-response.model';
-import { Registration, RegistrationSubmitPayload } from '../models/registration.model';
+import { FamilyMemberOption, Registration, RegistrationSubmitPayload } from '../models/registration.model';
 
 /**
  * Wraps all calls to the Google Apps Script Web App.
@@ -56,5 +56,11 @@ export class RegistrationApiService {
   initializeDatabase(): Observable<ApiResponse<null>> {
     const params = new HttpParams().set('action', 'initialize');
     return this.http.get<ApiResponse<null>>(this.apiUrl, { params });
+  }
+
+  /** Loads { id, fullName } for every existing registration, used by the accommodation dropdown. */
+  getMembers(): Observable<ApiResponse<FamilyMemberOption[]>> {
+    const params = new HttpParams().set('action', 'getMembers');
+    return this.http.get<ApiResponse<FamilyMemberOption[]>>(this.apiUrl, { params });
   }
 }

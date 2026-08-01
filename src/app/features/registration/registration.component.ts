@@ -5,14 +5,18 @@ import { finalize } from 'rxjs';
 
 import { RegistrationApiService } from '../../core/services/registration-api.service';
 import {
+  ATTENDANCE_DAY_OPTIONS,
   ATTENDANCE_DAYS_OPTIONS,
   CONFERENCE_BOOKING_OPTIONS,
+  FamilyMemberOption,
   GENDER_OPTIONS,
+  MARRIED_SPOUSE_BOOKED_OPTIONS,
   PAYMENT_AMOUNT_OPTIONS,
   PAYMENT_METHOD_OPTIONS,
   Registration,
   RegistrationSubmitPayload,
-  SERVANT_OPTIONS
+  SERVANT_OPTIONS,
+  TRANSPORTATION_TYPE_OPTIONS
 } from '../../core/models/registration.model';
 import { arabicTextValidator } from '../../shared/validators/arabic-text.validator';
 import { egyptianMobileValidator } from '../../shared/validators/egyptian-mobile.validator';
@@ -40,6 +44,9 @@ export class RegistrationComponent {
 
   readonly genderOptions = GENDER_OPTIONS;
   readonly attendanceDaysOptions = ATTENDANCE_DAYS_OPTIONS;
+  readonly transportationTypeOptions = TRANSPORTATION_TYPE_OPTIONS;
+  readonly attendanceDayOptions = ATTENDANCE_DAY_OPTIONS;
+  readonly marriedSpouseBookedOptions = MARRIED_SPOUSE_BOOKED_OPTIONS;
   readonly conferenceBookingOptions = CONFERENCE_BOOKING_OPTIONS;
   readonly paymentMethodOptions = PAYMENT_METHOD_OPTIONS;
   readonly paymentAmountOptions = PAYMENT_AMOUNT_OPTIONS;
@@ -51,6 +58,12 @@ export class RegistrationComponent {
   readonly alert = signal<AlertState | null>(null);
   readonly duplicateId = signal<string | null>(null);
   readonly editingId = signal<string | null>(null);
+
+  // Accommodation dropdown ("التسكين: اختار أفراد الأسرة") - loaded from the
+  // Registeration sheet via the "getMembers" API action.
+  readonly familyMembers = signal<FamilyMemberOption[]>([]);
+  readonly isLoadingFamilyMembers = signal(false);
+  readonly familyMembersError = signal<string | null>(null);
 
   readonly previews: Record<ImageFieldKey, string | null> = {
     frontIdImage: null,
@@ -75,6 +88,9 @@ export class RegistrationComponent {
     diocese: this.fb.control('', [Validators.required]),
 
     attendanceDays: this.fb.control('', [Validators.required]),
+    transportationType: this.fb.control(''),
+    attendanceDay: this.fb.control(''),
+    marriedAndYourSpousebookInConference: this.fb.control(''),
 
     conferenceBooking: this.fb.control('', [Validators.required]),
     paymentMethod: this.fb.control(''),
@@ -87,13 +103,20 @@ export class RegistrationComponent {
     personalPhoto: this.fb.control<File | string | null>(null, [Validators.required, imageFileValidator()]),
 
     notes: this.fb.control(''),
-    nationalId: this.fb.control('', [Validators.required, nationalIdValidator()])
+    nationalId: this.fb.control('', [Validators.required, nationalIdValidator()]),
+    accommodationFamilyMemberId: this.fb.control<string | null>(null)
   });
 
   constructor() {
     this.form
       .get('conferenceBooking')!
       .valueChanges.subscribe((value) => this.updatePaymentValidators(value));
+
+    this.form
+      .get('attendanceDays')!
+      .valueChanges.subscribe((value) => this.updateAttendanceConditionalValidators(value));
+
+    this.loadFamilyMembers();
   }
 
   /** Toggles PaymentMethod/PaymentAmount as required only when booking is "نعم". */
@@ -118,6 +141,97 @@ export class RegistrationComponent {
     return this.form.get('conferenceBooking')!.value === 'نعم';
   }
 
+  /**
+   * Dynamically shows/requires MarriedAndYourSpousebookInConference,
+   * TransportationType and AttendanceDay depending on the selected
+   * أيام الحضور option, and clears whichever field(s) are hidden so their
+   * stale values are never submitted.
+   *
+   * | AttendanceDays                     | Married          | TransportationType | AttendanceDay    |
+   * |-------------------------------------|------------------|---------------------|-------------------|
+   * | الجمعة والسبت بالمواصلات            | Show + Required  | Hidden              | Hidden            |
+   * | الجمعة والسبت بدون مواصلات          | Show + Required  | Show + Required     | Hidden            |
+   * | يوم واحد بدون مواصلات               | Hidden           | Hidden              | Show + Required   |
+   *
+   * clearValues defaults to true (a fresh user selection should always wipe
+   * the previous conditional answers). It is passed as false only while an
+   * existing registration is being loaded into the form, right before the
+   * saved values are patched in.
+   */
+  private updateAttendanceConditionalValidators(attendanceDays: string | null, clearValues = true): void {
+    const transportationType = this.form.get('transportationType')!;
+    const attendanceDay = this.form.get('attendanceDay')!;
+    const married = this.form.get('marriedAndYourSpousebookInConference')!;
+
+    if (clearValues) {
+      transportationType.setValue('', { emitEvent: false });
+      attendanceDay.setValue('', { emitEvent: false });
+      married.setValue('', { emitEvent: false });
+    }
+
+    if (attendanceDays === 'الجمعة والسبت بالمواصلات') {
+      married.setValidators([Validators.required]);
+      transportationType.clearValidators();
+      attendanceDay.clearValidators();
+    } else if (attendanceDays === 'الجمعة والسبت بدون مواصلات') {
+      married.setValidators([Validators.required]);
+      transportationType.setValidators([Validators.required]);
+      attendanceDay.clearValidators();
+    } else if (attendanceDays === 'يوم واحد بدون مواصلات') {
+      attendanceDay.setValidators([Validators.required]);
+      married.clearValidators();
+      transportationType.clearValidators();
+    } else {
+      married.clearValidators();
+      transportationType.clearValidators();
+      attendanceDay.clearValidators();
+    }
+
+    married.updateValueAndValidity({ emitEvent: false });
+    transportationType.updateValueAndValidity({ emitEvent: false });
+    attendanceDay.updateValueAndValidity({ emitEvent: false });
+  }
+
+  get showMarriedField(): boolean {
+    const value = this.form.get('attendanceDays')!.value;
+    return value === 'الجمعة والسبت بالمواصلات' || value === 'الجمعة والسبت بدون مواصلات';
+  }
+
+  get showTransportationTypeField(): boolean {
+    return this.form.get('attendanceDays')!.value === 'الجمعة والسبت بدون مواصلات';
+  }
+
+  get showAttendanceDayField(): boolean {
+    return this.form.get('attendanceDays')!.value === 'يوم واحد بدون مواصلات';
+  }
+
+  /** Loads { id, fullName } options for the accommodation dropdown. */
+  loadFamilyMembers(): void {
+    this.isLoadingFamilyMembers.set(true);
+    this.familyMembersError.set(null);
+    this.api
+      .getMembers()
+      .pipe(finalize(() => this.isLoadingFamilyMembers.set(false)))
+      .subscribe({
+        next: (response) => {
+          if (response.success) {
+            this.familyMembers.set(response.data ?? []);
+          } else {
+            this.familyMembersError.set('تعذر تحميل قائمة أفراد الأسرة، برجاء إعادة المحاولة');
+          }
+        },
+        error: () => {
+          this.familyMembersError.set('تعذر تحميل قائمة أفراد الأسرة، برجاء إعادة المحاولة');
+        }
+      });
+  }
+
+  /** Options shown in the dropdown, excluding the registration being edited (a person cannot house themselves). */
+  get accommodationOptions(): FamilyMemberOption[] {
+    const currentId = this.editingId();
+    return currentId ? this.familyMembers().filter((member) => member.id !== currentId) : this.familyMembers();
+  }
+
   /** Generic error-message lookup for template use. */
   errorFor(controlName: string): string | null {
     const control = this.form.get(controlName);
@@ -133,6 +247,11 @@ export class RegistrationComponent {
       gender: { required: 'النوع مطلوب' },
       diocese: { required: 'الأبرشية مطلوبة' },
       attendanceDays: { required: 'أيام الحضور مطلوبة' },
+      transportationType: { required: 'وسيلة المواصلات مطلوبة' },
+      attendanceDay: { required: 'يوم الحضور مطلوب' },
+      marriedAndYourSpousebookInConference: {
+        required: 'هل أنت متزوج وزوجك / زوجتك حجزت معك المؤتمر؟ مطلوب'
+      },
       conferenceBooking: { required: 'يرجى تحديد حجز المؤتمر' },
       paymentMethod: { required: 'طريقة الدفع مطلوبة' },
       paymentAmount: { required: 'مبلغ الدفع مطلوب' },
@@ -262,6 +381,11 @@ export class RegistrationComponent {
       PersonalPhotoFileUrl: registration.PersonalPhotoFileUrl
     };
 
+    // Apply the correct required/hidden state for the saved AttendanceDays
+    // value *before* patching in the saved TransportationType/AttendanceDay
+    // values, without clearing them (clearValues = false).
+    this.updateAttendanceConditionalValidators(registration.AttendanceDays, false);
+
     this.form.patchValue({
       firstName: registration.FirstName,
       secondName: registration.SecondName,
@@ -272,6 +396,9 @@ export class RegistrationComponent {
       job: registration.Job ?? '',
       diocese: registration.Diocese,
       attendanceDays: registration.AttendanceDays,
+      transportationType: registration.TransportationType ?? '',
+      attendanceDay: registration.AttendanceDay ?? '',
+      marriedAndYourSpousebookInConference: registration.MarriedAndYourSpousebookInConference ?? '',
       conferenceBooking: registration.ConferenceBooking,
       paymentMethod: registration.PaymentMethod ?? '',
       paymentAmount: registration.PaymentAmount ?? null,
@@ -280,7 +407,8 @@ export class RegistrationComponent {
       backIdImage: registration.BackIdFileUrl ?? null,
       personalPhoto: registration.PersonalPhotoFileUrl ?? null,
       notes: registration.Notes ?? '',
-      nationalId: registration.NationalId
+      nationalId: registration.NationalId,
+      accommodationFamilyMemberId: registration.AccommodationFamilyMemberId || null
     });
 
     this.previews.frontIdImage = registration.FrontIdFileUrl ?? null;
@@ -349,12 +477,19 @@ export class RegistrationComponent {
       Job: raw.job ?? '',
       Diocese: raw.diocese!,
       AttendanceDays: raw.attendanceDays!,
+      TransportationType: raw.attendanceDays === 'الجمعة والسبت بدون مواصلات' ? raw.transportationType ?? '' : '',
+      AttendanceDay: raw.attendanceDays === 'يوم واحد بدون مواصلات' ? raw.attendanceDay ?? '' : '',
+      MarriedAndYourSpousebookInConference:
+        raw.attendanceDays === 'الجمعة والسبت بالمواصلات' || raw.attendanceDays === 'الجمعة والسبت بدون مواصلات'
+          ? raw.marriedAndYourSpousebookInConference ?? ''
+          : '',
       ConferenceBooking: raw.conferenceBooking!,
       PaymentMethod: raw.paymentMethod ?? '',
       PaymentAmount: raw.paymentAmount ?? null,
       ServantName: raw.servantName!,
       Notes: raw.notes ?? '',
       NationalId: raw.nationalId!,
+      AccommodationFamilyMemberId: raw.accommodationFamilyMemberId || '',
       ...this.existingImageRefs
     };
 
@@ -382,6 +517,9 @@ export class RegistrationComponent {
       job: '',
       diocese: '',
       attendanceDays: '',
+      transportationType: '',
+      attendanceDay: '',
+      marriedAndYourSpousebookInConference: '',
       conferenceBooking: '',
       paymentMethod: '',
       paymentAmount: null,
@@ -390,7 +528,8 @@ export class RegistrationComponent {
       backIdImage: null,
       personalPhoto: null,
       notes: '',
-      nationalId: ''
+      nationalId: '',
+      accommodationFamilyMemberId: null
     });
     this.previews.frontIdImage = null;
     this.previews.backIdImage = null;
