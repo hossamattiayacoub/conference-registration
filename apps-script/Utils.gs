@@ -195,7 +195,6 @@ function validateRegistration(data, isUpdate) {
     ['Gender', 'النوع مطلوب'],
     ['Diocese', 'الأبرشية مطلوبة'],
     ['AttendanceDays', 'أيام الحضور مطلوبة'],
-    ['ConferenceBooking', 'يرجى تحديد حجز المؤتمر'],
     ['ServantName', 'الخادم مطلوب'],
     ['NationalId', 'الرقم القومي مطلوب']
   ];
@@ -218,16 +217,26 @@ function validateRegistration(data, isUpdate) {
     return { valid: false, message: 'الرقم القومي يجب أن يتكون من 14 رقم' };
   }
 
-  if (data.ConferenceBooking === 'نعم') {
-    if (!data.PaymentMethod) {
-      return { valid: false, message: 'طريقة الدفع مطلوبة' };
-    }
-    if (!data.PaymentAmount) {
-      return { valid: false, message: 'مبلغ الدفع مطلوب' };
+  // PaymentMethod/PaymentAmount are always required now that حجز المؤتمر
+  // (ConferenceBooking) has been removed as a gating field.
+  if (!data.PaymentMethod) {
+    return { valid: false, message: 'طريقة الدفع مطلوبة' };
+  }
+  if (!data.PaymentAmount) {
+    return { valid: false, message: 'مبلغ الدفع مطلوب' };
+  }
+
+  if (data.PaymentMethod === 'إنستاباي') {
+    const hasReceiptUpload = data.ReceiptTransferImageUpload && data.ReceiptTransferImageUpload.base64Data;
+    const hasExistingReceipt = isUpdate && data.ReceiptTransferImage;
+    if (!hasReceiptUpload && !hasExistingReceipt) {
+      return { valid: false, message: 'يرجى رفع صورة التحويل' };
     }
   }
 
-  if (data.AttendanceDays === 'الجمعة والسبت بدون مواصلات' && !data.TransportationType) {
+  // TransportationType is now shown (and required) for both "بدون مواصلات" options.
+  const transportationRequiredFor = ['الجمعة والسبت بدون مواصلات', 'يوم واحد بدون مواصلات'];
+  if (transportationRequiredFor.indexOf(data.AttendanceDays) !== -1 && !data.TransportationType) {
     return { valid: false, message: 'وسيلة المواصلات مطلوبة' };
   }
 
@@ -238,6 +247,19 @@ function validateRegistration(data, isUpdate) {
   const marriedRequiredFor = ['الجمعة والسبت بالمواصلات', 'الجمعة والسبت بدون مواصلات'];
   if (marriedRequiredFor.indexOf(data.AttendanceDays) !== -1 && !data.MarriedAndYourSpousebookInConference) {
     return { valid: false, message: 'هل أنت متزوج وزوجك / زوجتك حجزت معك المؤتمر؟ مطلوب' };
+  }
+
+  // CarNo/CarLicense only apply to "يوم واحد بدون مواصلات" + "Private Car".
+  const isCarScenario = data.AttendanceDays === 'يوم واحد بدون مواصلات' && data.TransportationType === 'Private Car';
+  if (isCarScenario) {
+    if (!data.CarNo || String(data.CarNo).trim() === '') {
+      return { valid: false, message: 'رقم السيارة مطلوب' };
+    }
+    const hasCarLicenseUpload = data.CarLicenseImage && data.CarLicenseImage.base64Data;
+    const hasExistingCarLicense = isUpdate && data.CarLicense;
+    if (!hasCarLicenseUpload && !hasExistingCarLicense) {
+      return { valid: false, message: 'صورة الرخصة مطلوبة' };
+    }
   }
 
   // On create, the three identity images must be present (either a new
@@ -284,6 +306,20 @@ function uploadImage(base64Data, fileName, mimeType, folderId) {
     fileId: file.getId(),
     fileUrl: 'https://drive.google.com/uc?id=' + file.getId()
   };
+}
+
+/**
+ * Extracts the Drive file ID from a URL previously produced by uploadImage()
+ * (format: 'https://drive.google.com/uc?id=FILE_ID'). Used by single-column
+ * image fields (CarLicense, ReceiptTransferImage) that only persist the URL,
+ * so the old Drive file can still be trashed when it is replaced or cleared.
+ */
+function extractDriveFileIdFromUrl_(url) {
+  if (!url) {
+    return null;
+  }
+  const match = String(url).match(/[?&]id=([^&]+)/);
+  return match ? match[1] : null;
 }
 
 /** Removes an existing Drive file by id. Silently ignores failures. */

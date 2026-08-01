@@ -84,6 +84,8 @@ function createRegistration(data) {
   }
 
   const now = new Date().toISOString();
+  const isCarScenario = isCarScenario_(data.AttendanceDays, data.TransportationType);
+  const isReceiptScenario = data.PaymentMethod === 'إنستاباي';
   const record = {
     Id: Utilities.getUuid(),
     FirstName: data.FirstName,
@@ -96,26 +98,40 @@ function createRegistration(data) {
     Job: data.Job || '',
     Diocese: data.Diocese,
     AttendanceDays: data.AttendanceDays,
-    TransportationType: data.AttendanceDays === 'الجمعة والسبت بدون مواصلات' ? data.TransportationType : '',
+    TransportationType: isTransportationVisible_(data.AttendanceDays) ? data.TransportationType : '',
     AttendanceDay: data.AttendanceDays === 'يوم واحد بدون مواصلات' ? data.AttendanceDay : '',
     MarriedAndYourSpousebookInConference: isMarriedFieldVisible_(data.AttendanceDays)
       ? data.MarriedAndYourSpousebookInConference
       : '',
-    ConferenceBooking: data.ConferenceBooking,
-    PaymentMethod: data.ConferenceBooking === 'نعم' ? data.PaymentMethod : '',
-    PaymentAmount: data.ConferenceBooking === 'نعم' ? data.PaymentAmount : '',
+    ConferenceBooking: '', // حجز المؤتمر removed from the UI; column kept only for backward compatibility.
+    PaymentMethod: data.PaymentMethod,
+    PaymentAmount: data.PaymentAmount,
     ServantName: data.ServantName,
     Notes: data.Notes || '',
     NationalId: data.NationalId,
     AccommodationFamilyMemberId: data.AccommodationFamilyMemberId || '',
+    CarNo: isCarScenario ? String(data.CarNo || '').trim() : '',
+    CarLicense: '',
+    ReceiptTransferImage: '',
     CreatedAt: now,
     UpdatedAt: now
   };
 
   attachUploadedImages_(record, data);
+  attachCarAndReceiptImages_(record, data, null, isCarScenario, isReceiptScenario);
 
   sheet.appendRow(registrationToRow_(record, headerMap));
   return createApiResponse(true, 'تم إضافة التسجيل بنجاح', record);
+}
+
+/** Whether TransportationType should be shown/required for a given AttendanceDays value. */
+function isTransportationVisible_(attendanceDays) {
+  return attendanceDays === 'الجمعة والسبت بدون مواصلات' || attendanceDays === 'يوم واحد بدون مواصلات';
+}
+
+/** Whether CarNo/CarLicense apply: only "يوم واحد بدون مواصلات" + "Private Car". */
+function isCarScenario_(attendanceDays, transportationType) {
+  return attendanceDays === 'يوم واحد بدون مواصلات' && transportationType === 'Private Car';
 }
 
 /** Whether MarriedAndYourSpousebookInConference should be shown/required for a given AttendanceDays value. */
@@ -153,6 +169,8 @@ function updateRegistration(data) {
   }
 
   const existingRecord = rowToRegistration_(target.row, target.headerMap);
+  const isCarScenario = isCarScenario_(data.AttendanceDays, data.TransportationType);
+  const isReceiptScenario = data.PaymentMethod === 'إنستاباي';
 
   const record = {
     Id: data.Id,
@@ -166,18 +184,21 @@ function updateRegistration(data) {
     Job: data.Job || '',
     Diocese: data.Diocese,
     AttendanceDays: data.AttendanceDays,
-    TransportationType: data.AttendanceDays === 'الجمعة والسبت بدون مواصلات' ? data.TransportationType : '',
+    TransportationType: isTransportationVisible_(data.AttendanceDays) ? data.TransportationType : '',
     AttendanceDay: data.AttendanceDays === 'يوم واحد بدون مواصلات' ? data.AttendanceDay : '',
     MarriedAndYourSpousebookInConference: isMarriedFieldVisible_(data.AttendanceDays)
       ? data.MarriedAndYourSpousebookInConference
       : '',
-    ConferenceBooking: data.ConferenceBooking,
-    PaymentMethod: data.ConferenceBooking === 'نعم' ? data.PaymentMethod : '',
-    PaymentAmount: data.ConferenceBooking === 'نعم' ? data.PaymentAmount : '',
+    ConferenceBooking: '', // حجز المؤتمر removed from the UI; column kept only for backward compatibility.
+    PaymentMethod: data.PaymentMethod,
+    PaymentAmount: data.PaymentAmount,
     ServantName: data.ServantName,
     Notes: data.Notes || '',
     NationalId: data.NationalId,
     AccommodationFamilyMemberId: data.AccommodationFamilyMemberId || '',
+    CarNo: isCarScenario ? String(data.CarNo || '').trim() : '',
+    CarLicense: isCarScenario ? existingRecord.CarLicense || '' : '',
+    ReceiptTransferImage: isReceiptScenario ? existingRecord.ReceiptTransferImage || '' : '',
     FrontIdFileId: existingRecord.FrontIdFileId,
     FrontIdFileUrl: existingRecord.FrontIdFileUrl,
     BackIdFileId: existingRecord.BackIdFileId,
@@ -188,7 +209,16 @@ function updateRegistration(data) {
     UpdatedAt: new Date().toISOString()
   };
 
+  // Clean up Drive files that are no longer applicable (scenario turned off).
+  if (!isCarScenario && existingRecord.CarLicense) {
+    tryDeleteFile_(extractDriveFileIdFromUrl_(existingRecord.CarLicense));
+  }
+  if (!isReceiptScenario && existingRecord.ReceiptTransferImage) {
+    tryDeleteFile_(extractDriveFileIdFromUrl_(existingRecord.ReceiptTransferImage));
+  }
+
   attachUploadedImages_(record, data, existingRecord);
+  attachCarAndReceiptImages_(record, data, existingRecord, isCarScenario, isReceiptScenario);
 
   const row = registrationToRow_(record, target.headerMap);
   sheet.getRange(target.rowIndex, 1, 1, row.length).setValues([row]);
@@ -223,6 +253,47 @@ function attachUploadedImages_(record, data, existingRecord) {
       record[item.urlKey] = uploaded.fileUrl;
     }
   });
+}
+
+/**
+ * Uploads CarLicense/ReceiptTransferImage when a new file was chosen. Unlike
+ * attachUploadedImages_, these two fields persist only a single Drive URL
+ * per sheet column (CarLicense / ReceiptTransferImage - exact names
+ * required), so the old file's id is recovered by parsing it back out of
+ * the previously stored URL before it is trashed.
+ */
+function attachCarAndReceiptImages_(record, data, existingRecord, isCarScenario, isReceiptScenario) {
+  if (isCarScenario) {
+    const carLicensePayload = data.CarLicenseImage;
+    if (carLicensePayload && carLicensePayload.base64Data) {
+      if (existingRecord && existingRecord.CarLicense) {
+        tryDeleteFile_(extractDriveFileIdFromUrl_(existingRecord.CarLicense));
+      }
+      const uploaded = uploadImage(
+        carLicensePayload.base64Data,
+        carLicensePayload.fileName,
+        carLicensePayload.mimeType,
+        CONFIG.CAR_LICENSE_FOLDER_ID
+      );
+      record.CarLicense = uploaded.fileUrl;
+    }
+  }
+
+  if (isReceiptScenario) {
+    const receiptPayload = data.ReceiptTransferImageUpload;
+    if (receiptPayload && receiptPayload.base64Data) {
+      if (existingRecord && existingRecord.ReceiptTransferImage) {
+        tryDeleteFile_(extractDriveFileIdFromUrl_(existingRecord.ReceiptTransferImage));
+      }
+      const uploaded = uploadImage(
+        receiptPayload.base64Data,
+        receiptPayload.fileName,
+        receiptPayload.mimeType,
+        CONFIG.RECEIPT_TRANSFER_FOLDER_ID
+      );
+      record.ReceiptTransferImage = uploaded.fileUrl;
+    }
+  }
 }
 
 /** Looks up a registration using the mobile number. */

@@ -20,6 +20,8 @@ const CONFIG = {
   FRONT_ID_FOLDER_ID: 'PASTE_FRONT_ID_FOLDER_ID_HERE',
   BACK_ID_FOLDER_ID: 'PASTE_BACK_ID_FOLDER_ID_HERE',
   PERSONAL_PHOTO_FOLDER_ID: 'PASTE_PERSONAL_PHOTO_FOLDER_ID_HERE',
+  CAR_LICENSE_FOLDER_ID: 'PASTE_CAR_LICENSE_FOLDER_ID_HERE',
+  RECEIPT_TRANSFER_FOLDER_ID: 'PASTE_RECEIPT_TRANSFER_FOLDER_ID_HERE',
 
   // Column order for the Registeration sheet header row.
   // Keep this array in sync with the Registration model used in Angular.
@@ -51,6 +53,9 @@ const CONFIG = {
     'AttendanceDay',
     'MarriedAndYourSpousebookInConference',
     'AccommodationFamilyMemberId',
+    'CarNo',
+    'CarLicense',
+    'ReceiptTransferImage',
     'CreatedAt',
     'UpdatedAt'
   ],

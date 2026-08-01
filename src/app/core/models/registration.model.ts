@@ -19,8 +19,9 @@ export const ATTENDANCE_DAYS_OPTIONS: string[] = [
 ];
 
 /**
- * Shown only when AttendanceDays === 'الجمعة والسبت بدون مواصلات'.
- * English values are what gets saved to the sheet; Arabic labels are shown in the UI.
+ * Shown when AttendanceDays === 'الجمعة والسبت بدون مواصلات' OR
+ * 'يوم واحد بدون مواصلات'. English values are what gets saved to the sheet;
+ * Arabic labels are shown in the UI.
  */
 export type TransportationType = 'Private Car' | 'Public Transportation' | '';
 
@@ -40,12 +41,6 @@ export const ATTENDANCE_DAY_OPTIONS: { value: AttendanceDay; label: string }[] =
   { value: 'Saturday', label: 'السبت' }
 ];
 
-/** Conference booking yes/no options. */
-export const CONFERENCE_BOOKING_OPTIONS: { value: string; label: string }[] = [
-  { value: 'نعم', label: 'نعم' },
-  { value: 'لا', label: 'لا' }
-];
-
 /**
  * "هل انت متزوج وزوجك / تك حجزت معك المؤتمر؟" - shown when AttendanceDays is
  * 'الجمعة والسبت بالمواصلات' or 'الجمعة والسبت بدون مواصلات'.
@@ -55,10 +50,10 @@ export const MARRIED_SPOUSE_BOOKED_OPTIONS: { value: string; label: string }[] =
   { value: 'لا', label: 'لا' }
 ];
 
-/** Payment method options, only relevant when ConferenceBooking === 'نعم'. */
+/** Payment method options - always required (طريقة الدفع). */
 export const PAYMENT_METHOD_OPTIONS: string[] = ['كاش', 'إنستاباي'];
 
-/** Payment amount options, only relevant when ConferenceBooking === 'نعم'. */
+/** Payment amount options - always required (مبلغ الدفع). */
 export const PAYMENT_AMOUNT_OPTIONS: number[] = [900, 1000, 800, 600, 500, 400, 300];
 
 /**
@@ -102,9 +97,10 @@ export interface Registration {
   TransportationType?: string;
   AttendanceDay?: string;
   MarriedAndYourSpousebookInConference?: string;
-  ConferenceBooking: string;
-  PaymentMethod?: string;
-  PaymentAmount?: number | null;
+  /** @deprecated Field removed from the UI; kept optional only so old sheet rows still parse without error. */
+  ConferenceBooking?: string;
+  PaymentMethod: string;
+  PaymentAmount: number | null;
   ServantName: string;
   FrontIdFileId?: string;
   FrontIdFileUrl?: string;
@@ -115,6 +111,20 @@ export interface Registration {
   Notes?: string;
   NationalId: string;
   AccommodationFamilyMemberId?: string | null;
+  /** Car number - required only when AttendanceDays is 'يوم واحد بدون مواصلات' and TransportationType is 'Private Car'. */
+  CarNo?: string;
+  /**
+   * Google Drive URL of the uploaded car license image. Stored as a single
+   * column (not a FileId/FileUrl pair like the other three images) because
+   * the sheet column name is fixed to exactly "CarLicense".
+   */
+  CarLicense?: string;
+  /**
+   * Google Drive URL of the uploaded payment-transfer receipt image,
+   * required only when PaymentMethod is 'إنستاباي'. Single URL column,
+   * same reasoning as CarLicense.
+   */
+  ReceiptTransferImage?: string;
   CreatedAt?: string;
   UpdatedAt?: string;
 }
@@ -141,6 +151,12 @@ export interface RegistrationSubmitPayload extends Omit<
   FrontIdImage?: ImageUploadPayload;
   BackIdImage?: ImageUploadPayload;
   PersonalPhotoImage?: ImageUploadPayload;
+  // New file chosen for the car-license uploader; CarLicense (inherited from
+  // Registration) carries the existing URL forward when no new file is chosen.
+  CarLicenseImage?: ImageUploadPayload;
+  // New file chosen for the payment-receipt uploader; ReceiptTransferImage
+  // (inherited from Registration) carries the existing URL forward otherwise.
+  ReceiptTransferImageUpload?: ImageUploadPayload;
   // Preserve existing URLs/IDs when editing without replacing an image.
   FrontIdFileId?: string;
   FrontIdFileUrl?: string;

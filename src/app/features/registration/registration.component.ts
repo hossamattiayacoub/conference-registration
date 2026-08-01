@@ -7,7 +7,6 @@ import { RegistrationApiService } from '../../core/services/registration-api.ser
 import {
   ATTENDANCE_DAY_OPTIONS,
   ATTENDANCE_DAYS_OPTIONS,
-  CONFERENCE_BOOKING_OPTIONS,
   FamilyMemberOption,
   GENDER_OPTIONS,
   MARRIED_SPOUSE_BOOKED_OPTIONS,
@@ -22,9 +21,10 @@ import { arabicTextValidator } from '../../shared/validators/arabic-text.validat
 import { egyptianMobileValidator } from '../../shared/validators/egyptian-mobile.validator';
 import { nationalIdValidator } from '../../shared/validators/national-id.validator';
 import { imageFileValidator } from '../../shared/validators/image-file.validator';
+import { notBlankValidator } from '../../shared/validators/not-blank.validator';
 import { fileToUploadPayload } from '../../shared/utils/file-to-base64.util';
 
-type ImageFieldKey = 'frontIdImage' | 'backIdImage' | 'personalPhoto';
+type ImageFieldKey = 'frontIdImage' | 'backIdImage' | 'personalPhoto' | 'carLicense' | 'receiptTransferImage';
 
 interface AlertState {
   type: 'success' | 'error' | 'info';
@@ -47,7 +47,6 @@ export class RegistrationComponent {
   readonly transportationTypeOptions = TRANSPORTATION_TYPE_OPTIONS;
   readonly attendanceDayOptions = ATTENDANCE_DAY_OPTIONS;
   readonly marriedSpouseBookedOptions = MARRIED_SPOUSE_BOOKED_OPTIONS;
-  readonly conferenceBookingOptions = CONFERENCE_BOOKING_OPTIONS;
   readonly paymentMethodOptions = PAYMENT_METHOD_OPTIONS;
   readonly paymentAmountOptions = PAYMENT_AMOUNT_OPTIONS;
   readonly servantOptions = SERVANT_OPTIONS;
@@ -68,7 +67,9 @@ export class RegistrationComponent {
   readonly previews: Record<ImageFieldKey, string | null> = {
     frontIdImage: null,
     backIdImage: null,
-    personalPhoto: null
+    personalPhoto: null,
+    carLicense: null,
+    receiptTransferImage: null
   };
 
   // Preserves existing Drive file id/url pairs while editing, so we don't
@@ -91,10 +92,12 @@ export class RegistrationComponent {
     transportationType: this.fb.control(''),
     attendanceDay: this.fb.control(''),
     marriedAndYourSpousebookInConference: this.fb.control(''),
+    carNo: this.fb.control(''),
+    carLicense: this.fb.control<File | string | null>(null),
 
-    conferenceBooking: this.fb.control('', [Validators.required]),
-    paymentMethod: this.fb.control(''),
-    paymentAmount: this.fb.control<number | null>(null),
+    paymentMethod: this.fb.control('', [Validators.required]),
+    paymentAmount: this.fb.control<number | null>(null, [Validators.required]),
+    receiptTransferImage: this.fb.control<File | string | null>(null),
 
     servantName: this.fb.control('', [Validators.required]),
 
@@ -109,36 +112,19 @@ export class RegistrationComponent {
 
   constructor() {
     this.form
-      .get('conferenceBooking')!
-      .valueChanges.subscribe((value) => this.updatePaymentValidators(value));
+      .get('attendanceDays')!
+      .valueChanges.subscribe((value) => {
+        this.updateAttendanceConditionalValidators(value);
+        this.updateCarFieldValidators();
+      });
+
+    this.form.get('transportationType')!.valueChanges.subscribe(() => this.updateCarFieldValidators());
 
     this.form
-      .get('attendanceDays')!
-      .valueChanges.subscribe((value) => this.updateAttendanceConditionalValidators(value));
+      .get('paymentMethod')!
+      .valueChanges.subscribe((value) => this.updateReceiptValidators(value));
 
     this.loadFamilyMembers();
-  }
-
-  /** Toggles PaymentMethod/PaymentAmount as required only when booking is "نعم". */
-  private updatePaymentValidators(conferenceBooking: string | null): void {
-    const paymentMethod = this.form.get('paymentMethod')!;
-    const paymentAmount = this.form.get('paymentAmount')!;
-
-    if (conferenceBooking === 'نعم') {
-      paymentMethod.setValidators([Validators.required]);
-      paymentAmount.setValidators([Validators.required]);
-    } else {
-      paymentMethod.setValidators([]);
-      paymentAmount.setValidators([]);
-      paymentMethod.setValue('');
-      paymentAmount.setValue(null);
-    }
-    paymentMethod.updateValueAndValidity({ emitEvent: false });
-    paymentAmount.updateValueAndValidity({ emitEvent: false });
-  }
-
-  get showPaymentFields(): boolean {
-    return this.form.get('conferenceBooking')!.value === 'نعم';
   }
 
   /**
@@ -151,7 +137,7 @@ export class RegistrationComponent {
    * |-------------------------------------|------------------|---------------------|-------------------|
    * | الجمعة والسبت بالمواصلات            | Show + Required  | Hidden              | Hidden            |
    * | الجمعة والسبت بدون مواصلات          | Show + Required  | Show + Required     | Hidden            |
-   * | يوم واحد بدون مواصلات               | Hidden           | Hidden              | Show + Required   |
+   * | يوم واحد بدون مواصلات               | Hidden           | Show + Required     | Show + Required   |
    *
    * clearValues defaults to true (a fresh user selection should always wipe
    * the previous conditional answers). It is passed as false only while an
@@ -179,8 +165,8 @@ export class RegistrationComponent {
       attendanceDay.clearValidators();
     } else if (attendanceDays === 'يوم واحد بدون مواصلات') {
       attendanceDay.setValidators([Validators.required]);
+      transportationType.setValidators([Validators.required]);
       married.clearValidators();
-      transportationType.clearValidators();
     } else {
       married.clearValidators();
       transportationType.clearValidators();
@@ -198,11 +184,73 @@ export class RegistrationComponent {
   }
 
   get showTransportationTypeField(): boolean {
-    return this.form.get('attendanceDays')!.value === 'الجمعة والسبت بدون مواصلات';
+    const value = this.form.get('attendanceDays')!.value;
+    return value === 'الجمعة والسبت بدون مواصلات' || value === 'يوم واحد بدون مواصلات';
   }
 
   get showAttendanceDayField(): boolean {
     return this.form.get('attendanceDays')!.value === 'يوم واحد بدون مواصلات';
+  }
+
+  /** CarNo/CarLicense apply only when AttendanceDays is "يوم واحد بدون مواصلات" AND TransportationType is "Private Car". */
+  get showCarFields(): boolean {
+    return (
+      this.form.get('attendanceDays')!.value === 'يوم واحد بدون مواصلات' &&
+      this.form.get('transportationType')!.value === 'Private Car'
+    );
+  }
+
+  /** Pure setter: applies (or removes) CarNo/CarLicense validators without touching their values. */
+  private setCarFieldValidators(isRequired: boolean): void {
+    const carNo = this.form.get('carNo')!;
+    const carLicense = this.form.get('carLicense')!;
+    if (isRequired) {
+      carNo.setValidators([Validators.required, notBlankValidator()]);
+      carLicense.setValidators([Validators.required, imageFileValidator()]);
+    } else {
+      carNo.clearValidators();
+      carLicense.clearValidators();
+    }
+    carNo.updateValueAndValidity({ emitEvent: false });
+    carLicense.updateValueAndValidity({ emitEvent: false });
+  }
+
+  /** Re-evaluates showCarFields and clears CarNo/CarLicense whenever the scenario turns off. */
+  private updateCarFieldValidators(): void {
+    if (!this.showCarFields) {
+      this.form.get('carNo')!.setValue('', { emitEvent: false });
+      this.form.get('carLicense')!.setValue(null, { emitEvent: false });
+      this.previews.carLicense = null;
+      delete this.existingImageRefs.CarLicense;
+    }
+    this.setCarFieldValidators(this.showCarFields);
+  }
+
+  /** ReceiptTransferImage applies only when PaymentMethod is "إنستاباي". */
+  get showReceiptTransferField(): boolean {
+    return this.form.get('paymentMethod')!.value === 'إنستاباي';
+  }
+
+  /** Pure setter: applies (or removes) the ReceiptTransferImage validators without touching its value. */
+  private setReceiptValidators(isRequired: boolean): void {
+    const receipt = this.form.get('receiptTransferImage')!;
+    if (isRequired) {
+      receipt.setValidators([Validators.required, imageFileValidator()]);
+    } else {
+      receipt.clearValidators();
+    }
+    receipt.updateValueAndValidity({ emitEvent: false });
+  }
+
+  /** Re-evaluates showReceiptTransferField and clears ReceiptTransferImage whenever the scenario turns off. */
+  private updateReceiptValidators(paymentMethod: string | null): void {
+    const isRequired = paymentMethod === 'إنستاباي';
+    if (!isRequired) {
+      this.form.get('receiptTransferImage')!.setValue(null, { emitEvent: false });
+      this.previews.receiptTransferImage = null;
+      delete this.existingImageRefs.ReceiptTransferImage;
+    }
+    this.setReceiptValidators(isRequired);
   }
 
   /** Loads { id, fullName } options for the accommodation dropdown. */
@@ -252,9 +300,19 @@ export class RegistrationComponent {
       marriedAndYourSpousebookInConference: {
         required: 'هل أنت متزوج وزوجك / زوجتك حجزت معك المؤتمر؟ مطلوب'
       },
-      conferenceBooking: { required: 'يرجى تحديد حجز المؤتمر' },
+      carNo: { required: 'رقم السيارة مطلوب', blank: 'رقم السيارة مطلوب' },
+      carLicense: {
+        required: 'صورة الرخصة مطلوبة',
+        invalidImageType: 'صيغة الصورة غير مدعومة (JPG, PNG, WEBP فقط)',
+        imageTooLarge: 'حجم الصورة أكبر من 10 ميجابايت'
+      },
       paymentMethod: { required: 'طريقة الدفع مطلوبة' },
       paymentAmount: { required: 'مبلغ الدفع مطلوب' },
+      receiptTransferImage: {
+        required: 'يرجى رفع صورة التحويل',
+        invalidImageType: 'صيغة الصورة غير مدعومة (JPG, PNG, WEBP فقط)',
+        imageTooLarge: 'حجم الصورة أكبر من 10 ميجابايت'
+      },
       servantName: { required: 'الخادم مطلوب' },
       frontIdImage: {
         required: 'صورة البطاقة الأمامية مطلوبة',
@@ -311,9 +369,13 @@ export class RegistrationComponent {
     } else if (field === 'backIdImage') {
       delete this.existingImageRefs.BackIdFileId;
       delete this.existingImageRefs.BackIdFileUrl;
-    } else {
+    } else if (field === 'personalPhoto') {
       delete this.existingImageRefs.PersonalPhotoFileId;
       delete this.existingImageRefs.PersonalPhotoFileUrl;
+    } else if (field === 'carLicense') {
+      delete this.existingImageRefs.CarLicense;
+    } else {
+      delete this.existingImageRefs.ReceiptTransferImage;
     }
   }
 
@@ -378,13 +440,22 @@ export class RegistrationComponent {
       BackIdFileId: registration.BackIdFileId,
       BackIdFileUrl: registration.BackIdFileUrl,
       PersonalPhotoFileId: registration.PersonalPhotoFileId,
-      PersonalPhotoFileUrl: registration.PersonalPhotoFileUrl
+      PersonalPhotoFileUrl: registration.PersonalPhotoFileUrl,
+      CarLicense: registration.CarLicense,
+      ReceiptTransferImage: registration.ReceiptTransferImage
     };
 
     // Apply the correct required/hidden state for the saved AttendanceDays
     // value *before* patching in the saved TransportationType/AttendanceDay
     // values, without clearing them (clearValues = false).
     this.updateAttendanceConditionalValidators(registration.AttendanceDays, false);
+
+    const isCarRequired =
+      registration.AttendanceDays === 'يوم واحد بدون مواصلات' && registration.TransportationType === 'Private Car';
+    this.setCarFieldValidators(isCarRequired);
+
+    const isReceiptRequired = registration.PaymentMethod === 'إنستاباي';
+    this.setReceiptValidators(isReceiptRequired);
 
     this.form.patchValue({
       firstName: registration.FirstName,
@@ -399,9 +470,11 @@ export class RegistrationComponent {
       transportationType: registration.TransportationType ?? '',
       attendanceDay: registration.AttendanceDay ?? '',
       marriedAndYourSpousebookInConference: registration.MarriedAndYourSpousebookInConference ?? '',
-      conferenceBooking: registration.ConferenceBooking,
-      paymentMethod: registration.PaymentMethod ?? '',
+      carNo: registration.CarNo ?? '',
+      carLicense: registration.CarLicense ?? null,
+      paymentMethod: registration.PaymentMethod,
       paymentAmount: registration.PaymentAmount ?? null,
+      receiptTransferImage: registration.ReceiptTransferImage ?? null,
       servantName: registration.ServantName,
       frontIdImage: registration.FrontIdFileUrl ?? null,
       backIdImage: registration.BackIdFileUrl ?? null,
@@ -414,6 +487,8 @@ export class RegistrationComponent {
     this.previews.frontIdImage = registration.FrontIdFileUrl ?? null;
     this.previews.backIdImage = registration.BackIdFileUrl ?? null;
     this.previews.personalPhoto = registration.PersonalPhotoFileUrl ?? null;
+    this.previews.carLicense = registration.CarLicense ?? null;
+    this.previews.receiptTransferImage = registration.ReceiptTransferImage ?? null;
   }
 
   async submit(): Promise<void> {
@@ -465,6 +540,10 @@ export class RegistrationComponent {
   private async buildPayload(): Promise<RegistrationSubmitPayload> {
     const raw = this.form.getRawValue();
     const fullName = [raw.firstName, raw.secondName, raw.thirdName, raw.fourthName].join(' ').trim();
+    const isTransportationVisible =
+      raw.attendanceDays === 'الجمعة والسبت بدون مواصلات' || raw.attendanceDays === 'يوم واحد بدون مواصلات';
+    const isCarScenario = raw.attendanceDays === 'يوم واحد بدون مواصلات' && raw.transportationType === 'Private Car';
+    const isReceiptScenario = raw.paymentMethod === 'إنستاباي';
 
     const payload: RegistrationSubmitPayload = {
       FirstName: raw.firstName!,
@@ -477,15 +556,15 @@ export class RegistrationComponent {
       Job: raw.job ?? '',
       Diocese: raw.diocese!,
       AttendanceDays: raw.attendanceDays!,
-      TransportationType: raw.attendanceDays === 'الجمعة والسبت بدون مواصلات' ? raw.transportationType ?? '' : '',
+      TransportationType: isTransportationVisible ? raw.transportationType ?? '' : '',
       AttendanceDay: raw.attendanceDays === 'يوم واحد بدون مواصلات' ? raw.attendanceDay ?? '' : '',
       MarriedAndYourSpousebookInConference:
         raw.attendanceDays === 'الجمعة والسبت بالمواصلات' || raw.attendanceDays === 'الجمعة والسبت بدون مواصلات'
           ? raw.marriedAndYourSpousebookInConference ?? ''
           : '',
-      ConferenceBooking: raw.conferenceBooking!,
-      PaymentMethod: raw.paymentMethod ?? '',
-      PaymentAmount: raw.paymentAmount ?? null,
+      CarNo: isCarScenario ? (raw.carNo ?? '').trim() : '',
+      PaymentMethod: raw.paymentMethod!,
+      PaymentAmount: raw.paymentAmount!,
       ServantName: raw.servantName!,
       Notes: raw.notes ?? '',
       NationalId: raw.nationalId!,
@@ -501,6 +580,12 @@ export class RegistrationComponent {
     }
     if (raw.personalPhoto instanceof File) {
       payload.PersonalPhotoImage = await fileToUploadPayload(raw.personalPhoto);
+    }
+    if (isCarScenario && raw.carLicense instanceof File) {
+      payload.CarLicenseImage = await fileToUploadPayload(raw.carLicense);
+    }
+    if (isReceiptScenario && raw.receiptTransferImage instanceof File) {
+      payload.ReceiptTransferImageUpload = await fileToUploadPayload(raw.receiptTransferImage);
     }
 
     return payload;
@@ -520,9 +605,11 @@ export class RegistrationComponent {
       transportationType: '',
       attendanceDay: '',
       marriedAndYourSpousebookInConference: '',
-      conferenceBooking: '',
+      carNo: '',
+      carLicense: null,
       paymentMethod: '',
       paymentAmount: null,
+      receiptTransferImage: null,
       servantName: '',
       frontIdImage: null,
       backIdImage: null,
@@ -534,6 +621,8 @@ export class RegistrationComponent {
     this.previews.frontIdImage = null;
     this.previews.backIdImage = null;
     this.previews.personalPhoto = null;
+    this.previews.carLicense = null;
+    this.previews.receiptTransferImage = null;
     this.existingImageRefs = {};
     this.editingId.set(null);
     this.duplicateId.set(null);

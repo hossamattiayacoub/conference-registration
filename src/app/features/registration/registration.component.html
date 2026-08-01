@@ -123,6 +123,17 @@
           <small class="error" *ngIf="errorFor('marriedAndYourSpousebookInConference')">{{ errorFor('marriedAndYourSpousebookInConference') }}</small>
         </div>
 
+        <div class="conditional-field" *ngIf="showAttendanceDayField">
+          <label>يوم الحضور <span class="required">*</span></label>
+          <div class="radio-row">
+            <label class="radio-card" *ngFor="let option of attendanceDayOptions">
+              <input type="radio" formControlName="attendanceDay" [value]="option.value">
+              <span>{{ option.label }}</span>
+            </label>
+          </div>
+          <small class="error" *ngIf="errorFor('attendanceDay')">{{ errorFor('attendanceDay') }}</small>
+        </div>
+
         <div class="conditional-field" *ngIf="showTransportationTypeField">
           <label>من فضلك اختار وسيله المواصلات <span class="required">*</span></label>
           <div class="radio-row">
@@ -134,50 +145,75 @@
           <small class="error" *ngIf="errorFor('transportationType')">{{ errorFor('transportationType') }}</small>
         </div>
 
-        <div class="conditional-field" *ngIf="showAttendanceDayField">
-          <label>يوم الحضور <span class="required">*</span></label>
-          <div class="radio-row">
-            <label class="radio-card" *ngFor="let option of attendanceDayOptions">
-              <input type="radio" formControlName="attendanceDay" [value]="option.value">
-              <span>{{ option.label }}</span>
-            </label>
+        <div class="conditional-field" *ngIf="showCarFields">
+          <label for="carNo">رقم السيارة <span class="required">*</span></label>
+          <input id="carNo" type="text" formControlName="carNo" placeholder="رقم السيارة" [class.invalid]="errorFor('carNo')">
+          <small class="error" *ngIf="errorFor('carNo')">{{ errorFor('carNo') }}</small>
+
+          <div class="upload-box">
+            <span class="upload-box__label">صورة الرخصة <span class="required">*</span></span>
+            <div class="upload-box__area">
+              <img *ngIf="previews.carLicense" [src]="previews.carLicense" alt="معاينة صورة الرخصة">
+              <label class="upload-box__cta" *ngIf="!previews.carLicense">
+                <input type="file" accept="image/png,image/jpeg,image/webp" (change)="onFileSelected($event, 'carLicense')" hidden>
+                اختر صورة
+              </label>
+            </div>
+            <div class="upload-box__actions" *ngIf="previews.carLicense">
+              <label class="btn btn--ghost btn--sm">
+                تغيير الصورة
+                <input type="file" accept="image/png,image/jpeg,image/webp" (change)="onFileSelected($event, 'carLicense')" hidden>
+              </label>
+              <button type="button" class="btn btn--danger-ghost btn--sm" (click)="removeImage('carLicense')">إزالة</button>
+            </div>
+            <small class="error" *ngIf="errorFor('carLicense')">{{ errorFor('carLicense') }}</small>
           </div>
-          <small class="error" *ngIf="errorFor('attendanceDay')">{{ errorFor('attendanceDay') }}</small>
         </div>
       </section>
 
-      <!-- SECTION 7: Conference booking -->
+      <!-- SECTION 7: Payment -->
       <section class="section">
-        <h2 class="section__title"><span class="section__badge">06</span> حجز المؤتمر</h2>
-        <div class="radio-row">
-          <label class="radio-card" *ngFor="let option of conferenceBookingOptions">
-            <input type="radio" formControlName="conferenceBooking" [value]="option.value">
-            <span>{{ option.label }}</span>
-          </label>
-        </div>
-        <small class="error" *ngIf="errorFor('conferenceBooking')">{{ errorFor('conferenceBooking') }}</small>
-
-        <div class="payment-fields" *ngIf="showPaymentFields">
-          <div class="field">
-            <label>طريقة الدفع <span class="required">*</span></label>
-            <div class="radio-row">
-              <label class="radio-card" *ngFor="let method of paymentMethodOptions">
-                <input type="radio" formControlName="paymentMethod" [value]="method">
-                <span>{{ method }}</span>
-              </label>
-            </div>
-            <small class="error" *ngIf="errorFor('paymentMethod')">{{ errorFor('paymentMethod') }}</small>
+        <h2 class="section__title"><span class="section__badge">06</span> الدفع</h2>
+        <div class="field">
+          <label>طريقة الدفع <span class="required">*</span></label>
+          <div class="radio-row">
+            <label class="radio-card" *ngFor="let method of paymentMethodOptions">
+              <input type="radio" formControlName="paymentMethod" [value]="method">
+              <span>{{ method }}</span>
+            </label>
           </div>
+          <small class="error" *ngIf="errorFor('paymentMethod')">{{ errorFor('paymentMethod') }}</small>
+        </div>
 
-          <div class="field">
-            <label>مبلغ الدفع <span class="required">*</span></label>
-            <div class="radio-row radio-row--wrap">
-              <label class="radio-card" *ngFor="let amount of paymentAmountOptions">
-                <input type="radio" formControlName="paymentAmount" [value]="amount">
-                <span>{{ amount }} جنيه</span>
+        <div class="field">
+          <label>مبلغ الدفع <span class="required">*</span></label>
+          <div class="radio-row radio-row--wrap">
+            <label class="radio-card" *ngFor="let amount of paymentAmountOptions">
+              <input type="radio" formControlName="paymentAmount" [value]="amount">
+              <span>{{ amount }} جنيه</span>
+            </label>
+          </div>
+          <small class="error" *ngIf="errorFor('paymentAmount')">{{ errorFor('paymentAmount') }}</small>
+        </div>
+
+        <div class="conditional-field" *ngIf="showReceiptTransferField">
+          <div class="upload-box">
+            <span class="upload-box__label">يرجى رفع صورة التحويل <span class="required">*</span></span>
+            <div class="upload-box__area">
+              <img *ngIf="previews.receiptTransferImage" [src]="previews.receiptTransferImage" alt="معاينة صورة التحويل">
+              <label class="upload-box__cta" *ngIf="!previews.receiptTransferImage">
+                <input type="file" accept="image/png,image/jpeg,image/webp" (change)="onFileSelected($event, 'receiptTransferImage')" hidden>
+                اختر صورة
               </label>
             </div>
-            <small class="error" *ngIf="errorFor('paymentAmount')">{{ errorFor('paymentAmount') }}</small>
+            <div class="upload-box__actions" *ngIf="previews.receiptTransferImage">
+              <label class="btn btn--ghost btn--sm">
+                تغيير الصورة
+                <input type="file" accept="image/png,image/jpeg,image/webp" (change)="onFileSelected($event, 'receiptTransferImage')" hidden>
+              </label>
+              <button type="button" class="btn btn--danger-ghost btn--sm" (click)="removeImage('receiptTransferImage')">إزالة</button>
+            </div>
+            <small class="error" *ngIf="errorFor('receiptTransferImage')">{{ errorFor('receiptTransferImage') }}</small>
           </div>
         </div>
       </section>

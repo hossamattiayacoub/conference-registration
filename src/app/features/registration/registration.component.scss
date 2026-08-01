@@ -261,6 +261,16 @@
   gap: 18px;
 }
 
+/* Stacked fields directly under a section (e.g. طريقة الدفع / مبلغ الدفع) get breathing room without a wrapper div. */
+.section > .field + .field {
+  margin-top: 18px;
+}
+
+/* CarLicense upload box sits below the CarNo input inside the same conditional block. */
+.conditional-field .upload-box {
+  margin-top: 14px;
+}
+
 /* ---------- Upload boxes ---------- */
 .upload-box {
   display: flex;
