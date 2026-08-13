@@ -228,17 +228,31 @@ function updateRegistration(data) {
 /**
  * Uploads any new image payloads found on `data` and writes the resulting
  * fileId/fileUrl pairs onto `record`. When updating and a new image
- * replaces an old one, the old Drive file is trashed.
+ * replaces an old one, the old Drive file is trashed. Each uploaded file is
+ * renamed to "{record.Id}-{label}.{ext}" so it is traceable in Drive.
  */
 function attachUploadedImages_(record, data, existingRecord) {
   const uploads = [
-    { payloadKey: 'FrontIdImage', idKey: 'FrontIdFileId', urlKey: 'FrontIdFileUrl', folderId: CONFIG.FRONT_ID_FOLDER_ID },
-    { payloadKey: 'BackIdImage', idKey: 'BackIdFileId', urlKey: 'BackIdFileUrl', folderId: CONFIG.BACK_ID_FOLDER_ID },
+    {
+      payloadKey: 'FrontIdImage',
+      idKey: 'FrontIdFileId',
+      urlKey: 'FrontIdFileUrl',
+      folderId: CONFIG.FRONT_ID_FOLDER_ID,
+      label: 'FrontId'
+    },
+    {
+      payloadKey: 'BackIdImage',
+      idKey: 'BackIdFileId',
+      urlKey: 'BackIdFileUrl',
+      folderId: CONFIG.BACK_ID_FOLDER_ID,
+      label: 'BackId'
+    },
     {
       payloadKey: 'PersonalPhotoImage',
       idKey: 'PersonalPhotoFileId',
       urlKey: 'PersonalPhotoFileUrl',
-      folderId: CONFIG.PERSONAL_PHOTO_FOLDER_ID
+      folderId: CONFIG.PERSONAL_PHOTO_FOLDER_ID,
+      label: 'PersonalPhoto'
     }
   ];
 
@@ -248,7 +262,8 @@ function attachUploadedImages_(record, data, existingRecord) {
       if (existingRecord && existingRecord[item.idKey]) {
         tryDeleteFile_(existingRecord[item.idKey]);
       }
-      const uploaded = uploadImage(payload.base64Data, payload.fileName, payload.mimeType, item.folderId);
+      const fileName = buildDriveFileName_(record.Id, item.label, payload.fileName);
+      const uploaded = uploadImage(payload.base64Data, fileName, payload.mimeType, item.folderId);
       record[item.idKey] = uploaded.fileId;
       record[item.urlKey] = uploaded.fileUrl;
     }
@@ -269,9 +284,10 @@ function attachCarAndReceiptImages_(record, data, existingRecord, isCarScenario,
       if (existingRecord && existingRecord.CarLicense) {
         tryDeleteFile_(extractDriveFileIdFromUrl_(existingRecord.CarLicense));
       }
+      const carLicenseFileName = buildDriveFileName_(record.Id, 'CarLicense', carLicensePayload.fileName);
       const uploaded = uploadImage(
         carLicensePayload.base64Data,
-        carLicensePayload.fileName,
+        carLicenseFileName,
         carLicensePayload.mimeType,
         CONFIG.CAR_LICENSE_FOLDER_ID
       );
@@ -285,9 +301,10 @@ function attachCarAndReceiptImages_(record, data, existingRecord, isCarScenario,
       if (existingRecord && existingRecord.ReceiptTransferImage) {
         tryDeleteFile_(extractDriveFileIdFromUrl_(existingRecord.ReceiptTransferImage));
       }
+      const receiptFileName = buildDriveFileName_(record.Id, 'ReceiptTransferImage', receiptPayload.fileName);
       const uploaded = uploadImage(
         receiptPayload.base64Data,
-        receiptPayload.fileName,
+        receiptFileName,
         receiptPayload.mimeType,
         CONFIG.RECEIPT_TRANSFER_FOLDER_ID
       );

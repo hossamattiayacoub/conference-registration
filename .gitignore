@@ -1,11 +1,18 @@
-node_modules
+# Dependencies
+/node_modules
 
-.angular
-.vscode
-.idea
+# Build output
+/dist
+/out-tsc
+/.angular/cache
 
-coverage
+# IDE
+/.vscode
+/.idea
 
-.log
+# System
+.DS_Store
+Thumbs.db
 
-.env
+# Environment secrets (keep the real Apps Script URL out of version control if desired)
+# src/environments/environment.ts

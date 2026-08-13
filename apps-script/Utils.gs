@@ -284,6 +284,22 @@ function validateRegistration(data, isUpdate) {
 }
 
 /**
+ * Builds the filename actually saved to Google Drive: "{registrationId}-{label}{.ext}".
+ * The original browser filename is discarded except for its extension, so
+ * every uploaded file is traceable back to its registration by name alone
+ * (e.g. "3f2a1c9e-...-FrontId.jpg" instead of "IMG_2034.jpg").
+ */
+function buildDriveFileName_(registrationId, label, originalFileName) {
+  let extension = '';
+  const name = String(originalFileName || '');
+  const dotIndex = name.lastIndexOf('.');
+  if (dotIndex !== -1) {
+    extension = name.substring(dotIndex); // includes the leading dot
+  }
+  return String(registrationId) + '-' + label + extension;
+}
+
+/**
  * Decodes a Base64 image, uploads it to the given Drive folder and
  * returns { fileId, fileUrl }.
  */
