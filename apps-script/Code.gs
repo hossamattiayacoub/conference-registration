@@ -24,8 +24,8 @@ function doGet(e) {
       return jsonOutput_(getRegistrationById(e.parameter.id));
     }
 
-    if (action === 'getMembers') {
-      return jsonOutput_(getMembers());
+    if (action === 'getRooms') {
+      return jsonOutput_(getRooms(e.parameter.excludeId));
     }
 
     return jsonOutput_(createApiResponse(false, 'إجراء غير معروف', null));
@@ -83,6 +83,14 @@ function createRegistration(data) {
     return createApiResponse(false, 'يوجد تسجيل بالفعل باستخدام رقم الموبايل ده', { id: existingId });
   }
 
+  const roomId = parseRoomId_(data.RoomId);
+  if (roomId !== null) {
+    const roomValidation = validateRoomCapacity_(roomId, null);
+    if (!roomValidation.valid) {
+      return createApiResponse(false, roomValidation.message, null);
+    }
+  }
+
   const now = new Date().toISOString();
   const isCarScenario = isCarScenario_(data.AttendanceDays, data.TransportationType);
   const isReceiptScenario = data.PaymentMethod === 'إنستاباي';
@@ -109,7 +117,11 @@ function createRegistration(data) {
     ServantName: data.ServantName,
     Notes: data.Notes || '',
     NationalId: data.NationalId,
-    AccommodationFamilyMemberId: data.AccommodationFamilyMemberId || '',
+    // AccommodationFamilyMemberId (old family-member accommodation column) is
+    // no longer collected by the UI - left empty for new rows, and carried
+    // forward untouched for updates (see updateRegistration).
+    AccommodationFamilyMemberId: '',
+    RoomId: roomId === null ? '' : roomId,
     CarNo: isCarScenario ? String(data.CarNo || '').trim() : '',
     CarLicense: '',
     ReceiptTransferImage: '',
@@ -122,6 +134,15 @@ function createRegistration(data) {
 
   sheet.appendRow(registrationToRow_(record, headerMap));
   return createApiResponse(true, 'تم إضافة التسجيل بنجاح', record);
+}
+
+/** Parses RoomId from the request payload into a number, or null when empty/invalid (room selection is optional). */
+function parseRoomId_(rawRoomId) {
+  if (rawRoomId === undefined || rawRoomId === null || rawRoomId === '') {
+    return null;
+  }
+  const roomId = Number(rawRoomId);
+  return isNaN(roomId) ? null : roomId;
 }
 
 /** Whether TransportationType should be shown/required for a given AttendanceDays value. */
@@ -172,6 +193,17 @@ function updateRegistration(data) {
   const isCarScenario = isCarScenario_(data.AttendanceDays, data.TransportationType);
   const isReceiptScenario = data.PaymentMethod === 'إنستاباي';
 
+  const roomId = parseRoomId_(data.RoomId);
+  if (roomId !== null) {
+    // Exclude this registration's own current room assignment from the
+    // occupancy count, so keeping (or re-picking) the same room never fails
+    // just because that registration itself fills the last slot.
+    const roomValidation = validateRoomCapacity_(roomId, data.Id);
+    if (!roomValidation.valid) {
+      return createApiResponse(false, roomValidation.message, null);
+    }
+  }
+
   const record = {
     Id: data.Id,
     FirstName: data.FirstName,
@@ -195,7 +227,10 @@ function updateRegistration(data) {
     ServantName: data.ServantName,
     Notes: data.Notes || '',
     NationalId: data.NationalId,
-    AccommodationFamilyMemberId: data.AccommodationFamilyMemberId || '',
+    // Old family-member accommodation column: no longer collected by the UI,
+    // so it is carried forward untouched rather than overwritten with ''.
+    AccommodationFamilyMemberId: existingRecord.AccommodationFamilyMemberId || '',
+    RoomId: roomId === null ? '' : roomId,
     CarNo: isCarScenario ? String(data.CarNo || '').trim() : '',
     CarLicense: isCarScenario ? existingRecord.CarLicense || '' : '',
     ReceiptTransferImage: isReceiptScenario ? existingRecord.ReceiptTransferImage || '' : '',
@@ -340,39 +375,17 @@ function getRegistrationById(id) {
 }
 
 /**
- * Returns { id, fullName } for every existing registration row - used to
- * populate the "التسكين: اختار أفراد الأسرة" accommodation dropdown.
- * Rows without an Id are skipped; rows without a FullName are skipped too,
- * since they would be useless/blank options in the dropdown.
+ * Returns every room from the Rooms sheet with its computed occupancy and
+ * availability, used to populate the "التسكين: اختار الغرفه" dropdown.
+ * excludeRegistrationId (optional) excludes that registration's own current
+ * room assignment from the occupancy count - used while editing that
+ * registration so its own room doesn't appear falsely full.
  */
-function getMembers() {
+function getRooms(excludeRegistrationId) {
   try {
-    const sheet = getRegistrationSheet_();
-    const headerMap = getHeaderIndexMap_(sheet);
-    const idCol = headerMap['Id'];
-    const nameCol = headerMap['FullName'];
-    const lastRow = sheet.getLastRow();
-
-    if (lastRow < 2 || idCol === undefined || nameCol === undefined) {
-      return createApiResponse(true, 'Family members loaded successfully', []);
-    }
-
-    const values = sheet.getRange(2, 1, lastRow - 1, sheet.getLastColumn()).getValues();
-    const members = [];
-    for (let i = 0; i < values.length; i++) {
-      const id = values[i][idCol];
-      const fullName = values[i][nameCol];
-      if (id && String(id).trim() !== '' && fullName && String(fullName).trim() !== '') {
-        members.push({ id: String(id).trim(), fullName: String(fullName).trim() });
-      }
-    }
-
-    members.sort(function (a, b) {
-      return a.fullName.localeCompare(b.fullName, 'ar');
-    });
-
-    return createApiResponse(true, 'Family members loaded successfully', members);
+    const rooms = getRoomsWithAvailability_(excludeRegistrationId || null);
+    return createApiResponse(true, 'Rooms loaded successfully', rooms);
   } catch (err) {
-    return createApiResponse(false, 'Failed to load family members', []);
+    return createApiResponse(false, 'Failed to load rooms', []);
   }
 }

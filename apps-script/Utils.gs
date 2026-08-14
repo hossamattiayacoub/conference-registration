@@ -349,3 +349,139 @@ function tryDeleteFile_(fileId) {
     // Ignore - the file may already be gone or inaccessible.
   }
 }
+
+/* ==========================================================================
+ * Rooms ("التسكين: اختار الغرفه")
+ * ========================================================================== */
+
+/** Returns the Rooms sheet, or null if it doesn't exist (it is managed manually, never auto-created). */
+function getRoomsSheet_() {
+  const spreadsheet = SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID);
+  return spreadsheet.getSheetByName(CONFIG.ROOMS_SHEET_NAME);
+}
+
+/**
+ * Reads every row of the Rooms sheet into { id, name, capacity, gender, description } objects.
+ * Rows with an empty/invalid Id are skipped.
+ */
+function readRoomsRaw_() {
+  const sheet = getRoomsSheet_();
+  if (!sheet) {
+    return [];
+  }
+  const headerMap = getHeaderIndexMapFor_(sheet, CONFIG.ROOMS_HEADERS);
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) {
+    return [];
+  }
+  const values = sheet.getRange(2, 1, lastRow - 1, sheet.getLastColumn()).getValues();
+  const rooms = [];
+  for (let i = 0; i < values.length; i++) {
+    const row = values[i];
+    const idRaw = headerMap.Id !== undefined ? row[headerMap.Id] : '';
+    const id = Number(idRaw);
+    if (idRaw === '' || idRaw === null || isNaN(id)) {
+      continue;
+    }
+    rooms.push({
+      id: id,
+      name: headerMap.Name !== undefined ? String(row[headerMap.Name] || '') : '',
+      capacity: headerMap.Capacity !== undefined ? Number(row[headerMap.Capacity]) || 0 : 0,
+      gender: headerMap.Gender !== undefined ? String(row[headerMap.Gender] || '') : '',
+      description: headerMap.Description !== undefined ? String(row[headerMap.Description] || '') : ''
+    });
+  }
+  return rooms;
+}
+
+/** Like getHeaderIndexMap_ but scoped to an explicit list of expected header names (used for the Rooms sheet). */
+function getHeaderIndexMapFor_(sheet, expectedHeaders) {
+  const headerRow = sheet.getRange(1, 1, 1, sheet.getLastColumn() || expectedHeaders.length).getValues()[0];
+  const map = {};
+  headerRow.forEach(function (name, index) {
+    if (name) {
+      map[name] = index;
+    }
+  });
+  return map;
+}
+
+/**
+ * Counts how many registrations currently reference each RoomId, optionally
+ * excluding one registration (used in edit mode so a registration doesn't
+ * count against its own room's capacity). Empty/invalid/orphaned RoomId
+ * values are ignored.
+ */
+function calculateRoomOccupancy_(excludeRegistrationId) {
+  const sheet = getRegistrationSheet_();
+  const headerMap = getHeaderIndexMap_(sheet);
+  const roomIdCol = headerMap['RoomId'];
+  const idCol = headerMap['Id'];
+  const occupancy = {};
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2 || roomIdCol === undefined) {
+    return occupancy;
+  }
+  const values = sheet.getRange(2, 1, lastRow - 1, sheet.getLastColumn()).getValues();
+  for (let i = 0; i < values.length; i++) {
+    const row = values[i];
+    if (excludeRegistrationId && idCol !== undefined && String(row[idCol]).trim() === String(excludeRegistrationId).trim()) {
+      continue; // Exclude the registration currently being edited.
+    }
+    const roomIdRaw = row[roomIdCol];
+    if (roomIdRaw === '' || roomIdRaw === null || roomIdRaw === undefined) {
+      continue;
+    }
+    const roomId = Number(roomIdRaw);
+    if (isNaN(roomId)) {
+      continue;
+    }
+    occupancy[roomId] = (occupancy[roomId] || 0) + 1;
+  }
+  return occupancy;
+}
+
+/**
+ * Returns every room with its computed currentOccupancy/availableSpaces/isFull,
+ * excluding one registration's own room assignment from the occupancy count
+ * (used in edit mode - see calculateRoomOccupancy_).
+ */
+function getRoomsWithAvailability_(excludeRegistrationId) {
+  const rooms = readRoomsRaw_();
+  const occupancy = calculateRoomOccupancy_(excludeRegistrationId);
+  return rooms.map(function (room) {
+    const currentOccupancy = occupancy[room.id] || 0;
+    const availableSpaces = Math.max(room.capacity - currentOccupancy, 0);
+    return {
+      id: room.id,
+      name: room.name,
+      capacity: room.capacity,
+      gender: room.gender,
+      description: room.description,
+      currentOccupancy: currentOccupancy,
+      availableSpaces: availableSpaces,
+      isFull: currentOccupancy >= room.capacity
+    };
+  });
+}
+
+/**
+ * Server-side capacity check performed again right before create/update, so
+ * two people submitting at the same time can't both take the last space.
+ * Returns { valid: boolean, message: string }.
+ */
+function validateRoomCapacity_(roomId, excludeRegistrationId) {
+  const rooms = readRoomsRaw_();
+  const room = rooms.filter(function (r) {
+    return r.id === roomId;
+  })[0];
+  if (!room) {
+    return { valid: false, message: 'الغرفة المحددة غير موجودة' };
+  }
+  const occupancy = calculateRoomOccupancy_(excludeRegistrationId);
+  const currentOccupancy = occupancy[room.id] || 0;
+  if (currentOccupancy >= room.capacity) {
+    return { valid: false, message: 'هذه الغرفة مكتملة ولا يوجد أماكن متاحة' };
+  }
+  return { valid: true, message: '' };
+}

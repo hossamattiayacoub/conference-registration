@@ -206,6 +206,26 @@
   flex-wrap: wrap;
 }
 
+/* ---------- Room details (after a room is selected) ---------- */
+.room-details {
+  margin-top: 12px;
+  padding: 14px 16px;
+  border-radius: var(--radius-sm);
+  background: var(--color-primary-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13.5px;
+  color: var(--color-primary-dark);
+
+  &__row {
+    span {
+      font-weight: 700;
+      margin-inline-end: 4px;
+    }
+  }
+}
+
 /* ---------- Radio cards ---------- */
 .radio-row {
   display: flex;

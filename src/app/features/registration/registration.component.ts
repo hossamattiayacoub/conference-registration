@@ -7,13 +7,13 @@ import { RegistrationApiService } from '../../core/services/registration-api.ser
 import {
   ATTENDANCE_DAY_OPTIONS,
   ATTENDANCE_DAYS_OPTIONS,
-  FamilyMemberOption,
   GENDER_OPTIONS,
   MARRIED_SPOUSE_BOOKED_OPTIONS,
   PAYMENT_AMOUNT_OPTIONS,
   PAYMENT_METHOD_OPTIONS,
   Registration,
   RegistrationSubmitPayload,
+  Room,
   SERVANT_OPTIONS,
   TRANSPORTATION_TYPE_OPTIONS
 } from '../../core/models/registration.model';
@@ -58,11 +58,11 @@ export class RegistrationComponent {
   readonly duplicateId = signal<string | null>(null);
   readonly editingId = signal<string | null>(null);
 
-  // Accommodation dropdown ("التسكين: اختار أفراد الأسرة") - loaded from the
-  // Registeration sheet via the "getMembers" API action.
-  readonly familyMembers = signal<FamilyMemberOption[]>([]);
-  readonly isLoadingFamilyMembers = signal(false);
-  readonly familyMembersError = signal<string | null>(null);
+  // Room dropdown ("التسكين: اختار الغرفه") - loaded from the Rooms sheet
+  // via the "getRooms" API action, which also computes occupancy server-side.
+  readonly rooms = signal<Room[]>([]);
+  readonly isLoadingRooms = signal(false);
+  readonly roomsError = signal<string | null>(null);
 
   readonly previews: Record<ImageFieldKey, string | null> = {
     frontIdImage: null,
@@ -107,7 +107,7 @@ export class RegistrationComponent {
 
     notes: this.fb.control(''),
     nationalId: this.fb.control('', [Validators.required, nationalIdValidator()]),
-    accommodationFamilyMemberId: this.fb.control<string | null>(null)
+    roomId: this.fb.control<number | null>(null)
   });
 
   constructor() {
@@ -124,7 +124,7 @@ export class RegistrationComponent {
       .get('paymentMethod')!
       .valueChanges.subscribe((value) => this.updateReceiptValidators(value));
 
-    this.loadFamilyMembers();
+    this.loadRooms();
   }
 
   /**
@@ -253,31 +253,51 @@ export class RegistrationComponent {
     this.setReceiptValidators(isRequired);
   }
 
-  /** Loads { id, fullName } options for the accommodation dropdown. */
-  loadFamilyMembers(): void {
-    this.isLoadingFamilyMembers.set(true);
-    this.familyMembersError.set(null);
+  /** Loads rooms with availability for the accommodation dropdown, excluding the registration currently being edited (if any) from occupancy. */
+  loadRooms(): void {
+    this.isLoadingRooms.set(true);
+    this.roomsError.set(null);
     this.api
-      .getMembers()
-      .pipe(finalize(() => this.isLoadingFamilyMembers.set(false)))
+      .getRooms(this.editingId())
+      .pipe(finalize(() => this.isLoadingRooms.set(false)))
       .subscribe({
         next: (response) => {
           if (response.success) {
-            this.familyMembers.set(response.data ?? []);
+            this.rooms.set(response.data ?? []);
           } else {
-            this.familyMembersError.set('تعذر تحميل قائمة أفراد الأسرة، برجاء إعادة المحاولة');
+            this.roomsError.set('تعذر تحميل قائمة الغرف، برجاء إعادة المحاولة');
           }
         },
         error: () => {
-          this.familyMembersError.set('تعذر تحميل قائمة أفراد الأسرة، برجاء إعادة المحاولة');
+          this.roomsError.set('تعذر تحميل قائمة الغرف، برجاء إعادة المحاولة');
         }
       });
   }
 
-  /** Options shown in the dropdown, excluding the registration being edited (a person cannot house themselves). */
-  get accommodationOptions(): FamilyMemberOption[] {
-    const currentId = this.editingId();
-    return currentId ? this.familyMembers().filter((member) => member.id !== currentId) : this.familyMembers();
+  /**
+   * Rooms shown in the dropdown. Once a Gender is selected, only rooms whose
+   * Gender matches are offered (a Male attendee shouldn't be assigned a
+   * Female room). Before Gender is chosen, all rooms are shown.
+   */
+  get filteredRooms(): Room[] {
+    const gender = this.form.get('gender')!.value;
+    return gender ? this.rooms().filter((room) => room.gender === gender) : this.rooms();
+  }
+
+  /** The full Room object for the currently selected roomId, used to render the details block. */
+  get selectedRoom(): Room | null {
+    const roomId = this.form.get('roomId')!.value;
+    if (roomId === null || roomId === undefined) {
+      return null;
+    }
+    return this.rooms().find((room) => room.id === roomId) ?? null;
+  }
+
+  formatRoomOptionLabel(room: Room): string {
+    if (room.isFull) {
+      return `${room.name} - مكتملة`;
+    }
+    return `${room.name} - المتاح: ${room.availableSpaces} من ${room.capacity}`;
   }
 
   /** Generic error-message lookup for template use. */
@@ -481,8 +501,12 @@ export class RegistrationComponent {
       personalPhoto: registration.PersonalPhotoFileUrl ?? null,
       notes: registration.Notes ?? '',
       nationalId: registration.NationalId,
-      accommodationFamilyMemberId: registration.AccommodationFamilyMemberId || null
+      roomId: registration.RoomId ?? null
     });
+
+    // Re-load rooms now that editingId is set, so this registration's own
+    // current room assignment is excluded from the occupancy count.
+    this.loadRooms();
 
     this.previews.frontIdImage = registration.FrontIdFileUrl ?? null;
     this.previews.backIdImage = registration.BackIdFileUrl ?? null;
@@ -498,6 +522,11 @@ export class RegistrationComponent {
 
     if (this.form.invalid) {
       this.alert.set({ type: 'error', message: 'يرجى مراجعة الحقول المطلوبة وتصحيح الأخطاء' });
+      return;
+    }
+
+    if (this.selectedRoom?.isFull) {
+      this.alert.set({ type: 'error', message: 'هذه الغرفة اكتملت بالفعل، برجاء اختيار غرفة أخرى' });
       return;
     }
 
@@ -568,7 +597,7 @@ export class RegistrationComponent {
       ServantName: raw.servantName!,
       Notes: raw.notes ?? '',
       NationalId: raw.nationalId!,
-      AccommodationFamilyMemberId: raw.accommodationFamilyMemberId || '',
+      RoomId: raw.roomId ?? null,
       ...this.existingImageRefs
     };
 
@@ -616,7 +645,7 @@ export class RegistrationComponent {
       personalPhoto: null,
       notes: '',
       nationalId: '',
-      accommodationFamilyMemberId: null
+      roomId: null
     });
     this.previews.frontIdImage = null;
     this.previews.backIdImage = null;
@@ -626,6 +655,7 @@ export class RegistrationComponent {
     this.existingImageRefs = {};
     this.editingId.set(null);
     this.duplicateId.set(null);
+    this.loadRooms(); // Refresh availability now that no registration is excluded from occupancy.
   }
 
   dismissAlert(): void {

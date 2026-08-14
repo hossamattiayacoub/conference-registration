@@ -15,6 +15,11 @@ const CONFIG = {
   // Sheet name is intentionally spelled "Registeration" - do not rename.
   SHEET_NAME: 'Registeration',
 
+  // The Rooms sheet lives in the same spreadsheet and already exists with
+  // its own headers - we only read from it, never create/modify its schema.
+  ROOMS_SHEET_NAME: 'Rooms',
+  ROOMS_HEADERS: ['Id', 'Name', 'Capacity', 'Gender', 'Description'],
+
   // Google Drive folder IDs used to store uploaded images.
   // Replace these placeholders with real folder IDs before deploying.
   FRONT_ID_FOLDER_ID: 'PASTE_FRONT_ID_FOLDER_ID_HERE',
@@ -56,6 +61,7 @@ const CONFIG = {
     'CarNo',
     'CarLicense',
     'ReceiptTransferImage',
+    'RoomId',
     'CreatedAt',
     'UpdatedAt'
   ],

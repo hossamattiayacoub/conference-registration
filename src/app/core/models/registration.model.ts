@@ -70,13 +70,19 @@ export const SERVANT_OPTIONS: string[] = [
 ];
 
 /**
- * A person already registered, offered as an option in the accommodation
- * ("التسكين: اختار أفراد الأسرة") dropdown. Loaded dynamically from the
- * Registeration sheet via the "getMembers" API action.
+ * A room from the "Rooms" sheet, offered as an option in the accommodation
+ * ("التسكين: اختار الغرفه") dropdown. Loaded dynamically via the "getRooms"
+ * API action, which also computes occupancy/availability server-side.
  */
-export interface FamilyMemberOption {
-  id: string;
-  fullName: string;
+export interface Room {
+  id: number;
+  name: string;
+  capacity: number;
+  gender: string;
+  description: string;
+  currentOccupancy: number;
+  availableSpaces: number;
+  isFull: boolean;
 }
 
 /**
@@ -110,7 +116,14 @@ export interface Registration {
   PersonalPhotoFileUrl?: string;
   Notes?: string;
   NationalId: string;
+  /**
+   * @deprecated Superseded by RoomId (room selection). Kept optional only so
+   * old sheet rows/data are never deleted or overwritten - the Angular app
+   * no longer reads or writes this field.
+   */
   AccommodationFamilyMemberId?: string | null;
+  /** Selected room's Id from the Rooms sheet ("التسكين: اختار الغرفه"). Optional. */
+  RoomId?: number | null;
   /** Car number - required only when AttendanceDays is 'يوم واحد بدون مواصلات' and TransportationType is 'Private Car'. */
   CarNo?: string;
   /**

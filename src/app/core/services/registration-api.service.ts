@@ -3,7 +3,7 @@ import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { ApiResponse } from '../models/api-response.model';
-import { FamilyMemberOption, Registration, RegistrationSubmitPayload } from '../models/registration.model';
+import { Registration, RegistrationSubmitPayload, Room } from '../models/registration.model';
 
 /**
  * Wraps all calls to the Google Apps Script Web App.
@@ -58,9 +58,16 @@ export class RegistrationApiService {
     return this.http.get<ApiResponse<null>>(this.apiUrl, { params });
   }
 
-  /** Loads { id, fullName } for every existing registration, used by the accommodation dropdown. */
-  getMembers(): Observable<ApiResponse<FamilyMemberOption[]>> {
-    const params = new HttpParams().set('action', 'getMembers');
-    return this.http.get<ApiResponse<FamilyMemberOption[]>>(this.apiUrl, { params });
+  /**
+   * Loads rooms with computed occupancy/availability for the "التسكين: اختار الغرفه" dropdown.
+   * Pass excludeRegistrationId while editing a registration so that registration's own
+   * current room assignment doesn't count against that room's capacity.
+   */
+  getRooms(excludeRegistrationId?: string | null): Observable<ApiResponse<Room[]>> {
+    let params = new HttpParams().set('action', 'getRooms');
+    if (excludeRegistrationId) {
+      params = params.set('excludeId', excludeRegistrationId);
+    }
+    return this.http.get<ApiResponse<Room[]>>(this.apiUrl, { params });
   }
 }
