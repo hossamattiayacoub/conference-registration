@@ -254,6 +254,7 @@
             <div class="room-details__row"><span>السعة:</span> {{ room.capacity }}</div>
             <div class="room-details__row"><span>الموجودين:</span> {{ room.currentOccupancy }}</div>
             <div class="room-details__row"><span>الأماكن المتاحة:</span> {{ room.availableSpaces }}</div>
+            <div class="room-details__row"><span>الحاجزين:</span> {{ formatOccupantNames(room) }}</div>
             <div class="room-details__row" *ngIf="room.description">{{ room.description }}</div>
           </div>
         </div>

@@ -300,6 +300,11 @@ export class RegistrationComponent {
     return `${room.name} - المتاح: ${room.availableSpaces} من ${room.capacity}`;
   }
 
+  /** Comma-separated occupant names for the "الحاجزين" line, or "لا يوجد" when the room is empty. */
+  formatOccupantNames(room: Room): string {
+    return room.occupantNames.length > 0 ? room.occupantNames.join(', ') : 'لا يوجد';
+  }
+
   /** Generic error-message lookup for template use. */
   errorFor(controlName: string): string | null {
     const control = this.form.get(controlName);

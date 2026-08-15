@@ -83,6 +83,8 @@ export interface Room {
   currentOccupancy: number;
   availableSpaces: number;
   isFull: boolean;
+  /** FullName of everyone currently assigned to this room (edit mode excludes the registration being edited). */
+  occupantNames: string[];
 }
 
 /**

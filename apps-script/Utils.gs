@@ -407,6 +407,50 @@ function getHeaderIndexMapFor_(sheet, expectedHeaders) {
 }
 
 /**
+ * Collects the FullName of every registration currently assigned to each
+ * RoomId, optionally excluding one registration (edit mode - so the person
+ * being edited never appears in their own room's occupant list). Kept
+ * separate from calculateRoomOccupancy_ so the existing capacity-count
+ * logic stays untouched; this only powers the "الحاجزين" display.
+ */
+function collectRoomOccupantNames_(excludeRegistrationId) {
+  const sheet = getRegistrationSheet_();
+  const headerMap = getHeaderIndexMap_(sheet);
+  const roomIdCol = headerMap['RoomId'];
+  const idCol = headerMap['Id'];
+  const fullNameCol = headerMap['FullName'];
+  const occupantNames = {};
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2 || roomIdCol === undefined) {
+    return occupantNames;
+  }
+  const values = sheet.getRange(2, 1, lastRow - 1, sheet.getLastColumn()).getValues();
+  for (let i = 0; i < values.length; i++) {
+    const row = values[i];
+    if (excludeRegistrationId && idCol !== undefined && String(row[idCol]).trim() === String(excludeRegistrationId).trim()) {
+      continue; // Exclude the registration currently being edited.
+    }
+    const roomIdRaw = row[roomIdCol];
+    if (roomIdRaw === '' || roomIdRaw === null || roomIdRaw === undefined) {
+      continue;
+    }
+    const roomId = Number(roomIdRaw);
+    if (isNaN(roomId)) {
+      continue;
+    }
+    const fullName = fullNameCol !== undefined ? String(row[fullNameCol] || '').trim() : '';
+    if (!fullName) {
+      continue;
+    }
+    if (!occupantNames[roomId]) {
+      occupantNames[roomId] = [];
+    }
+    occupantNames[roomId].push(fullName);
+  }
+  return occupantNames;
+}
+
+/**
  * Counts how many registrations currently reference each RoomId, optionally
  * excluding one registration (used in edit mode so a registration doesn't
  * count against its own room's capacity). Empty/invalid/orphaned RoomId
@@ -449,6 +493,7 @@ function calculateRoomOccupancy_(excludeRegistrationId) {
 function getRoomsWithAvailability_(excludeRegistrationId) {
   const rooms = readRoomsRaw_();
   const occupancy = calculateRoomOccupancy_(excludeRegistrationId);
+  const occupantNames = collectRoomOccupantNames_(excludeRegistrationId);
   return rooms.map(function (room) {
     const currentOccupancy = occupancy[room.id] || 0;
     const availableSpaces = Math.max(room.capacity - currentOccupancy, 0);
@@ -460,7 +505,8 @@ function getRoomsWithAvailability_(excludeRegistrationId) {
       description: room.description,
       currentOccupancy: currentOccupancy,
       availableSpaces: availableSpaces,
-      isFull: currentOccupancy >= room.capacity
+      isFull: currentOccupancy >= room.capacity,
+      occupantNames: occupantNames[room.id] || []
     };
   });
 }
