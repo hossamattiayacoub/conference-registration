@@ -262,6 +262,13 @@ function validateRegistration(data, isUpdate) {
     }
   }
 
+  // التسكين: اختار الغرفه - RoomId is now mandatory. parseRoomId_ (Code.gs)
+  // returns null for empty/undefined/non-numeric values, so this single
+  // check also covers "invalid" RoomId values.
+  if (parseRoomId_(data.RoomId) === null) {
+    return { valid: false, message: 'التسكين مطلوب' };
+  }
+
   // On create, the three identity images must be present (either a new
   // upload payload, or - for updates - an already-stored file reference).
   const imageChecks = [

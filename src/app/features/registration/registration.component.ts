@@ -107,7 +107,7 @@ export class RegistrationComponent {
 
     notes: this.fb.control(''),
     nationalId: this.fb.control('', [Validators.required, nationalIdValidator()]),
-    roomId: this.fb.control<number | null>(null)
+    roomId: this.fb.control<number | null>(null, [Validators.required])
   });
 
   constructor() {
@@ -300,9 +300,30 @@ export class RegistrationComponent {
     return `${room.name} - المتاح: ${room.availableSpaces} من ${room.capacity}`;
   }
 
-  /** Comma-separated occupant names for the "الحاجزين" line, or "لا يوجد" when the room is empty. */
+  /** Comma-separated MASKED occupant names for the "الحاجزين" line, or "لا يوجد" when the room is empty. */
   formatOccupantNames(room: Room): string {
-    return room.occupantNames.length > 0 ? room.occupantNames.join(', ') : 'لا يوجد';
+    return room.occupantNames.length > 0
+      ? room.occupantNames.map((name) => this.maskOccupantName(name)).join(', ')
+      : 'لا يوجد';
+  }
+
+  /**
+   * Masks a name for display only (the raw FullName in the API response and
+   * Google Sheets is never touched): first word stays fully visible, every
+   * subsequent word becomes its first character + "***".
+   * e.g. "حسام عطية يعقوب" -> "حسام ع*** ي***".
+   */
+  private maskOccupantName(fullName: string): string {
+    const words = (fullName ?? '').trim().split(/\s+/).filter((word) => word.length > 0);
+    if (words.length === 0) {
+      return '';
+    }
+    if (words.length === 1) {
+      return words[0];
+    }
+    const [firstWord, ...restWords] = words;
+    const maskedRest = restWords.map((word) => `${word.charAt(0)}***`);
+    return [firstWord, ...maskedRest].join(' ');
   }
 
   /** Generic error-message lookup for template use. */
@@ -339,6 +360,7 @@ export class RegistrationComponent {
         imageTooLarge: 'حجم الصورة أكبر من 10 ميجابايت'
       },
       servantName: { required: 'الخادم مطلوب' },
+      roomId: { required: 'التسكين مطلوب' },
       frontIdImage: {
         required: 'صورة البطاقة الأمامية مطلوبة',
         invalidImageType: 'صيغة الصورة غير مدعومة (JPG, PNG, WEBP فقط)',

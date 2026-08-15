@@ -234,8 +234,8 @@
       <section class="section">
         <h2 class="section__title"><span class="section__badge">08</span> التسكين: اختار الغرفه</h2>
         <div class="field">
-          <label for="roomId">التسكين: اختار الغرفه</label>
-          <select id="roomId" formControlName="roomId">
+          <label for="roomId">التسكين: اختار الغرفه <span class="required">*</span></label>
+          <select id="roomId" formControlName="roomId" [class.invalid]="errorFor('roomId')">
             <option [ngValue]="null">-- اختر غرفة --</option>
             <option
               *ngFor="let room of filteredRooms"
@@ -243,6 +243,7 @@
               [attr.disabled]="room.isFull ? true : null"
             >{{ formatRoomOptionLabel(room) }}</option>
           </select>
+          <small class="error" *ngIf="errorFor('roomId')">{{ errorFor('roomId') }}</small>
           <small class="hint" *ngIf="isLoadingRooms()">جاري تحميل الغرف...</small>
           <div class="field__inline-error" *ngIf="roomsError() && !isLoadingRooms()">
             <small class="error">{{ roomsError() }}</small>
