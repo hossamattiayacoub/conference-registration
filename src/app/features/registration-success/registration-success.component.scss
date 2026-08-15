@@ -1,0 +1,179 @@
+:host {
+  display: block;
+}
+
+.page {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 0 20px 64px;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+/* ---------- Hero header (matches registration.component.scss) ---------- */
+.hero {
+  position: relative;
+  overflow: hidden;
+  margin: 0 -20px 28px;
+  padding: 48px 32px 40px;
+  background: linear-gradient(160deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
+  color: #fff;
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+
+  &__pattern {
+    position: absolute;
+    inset: 0;
+    opacity: 0.16;
+    background-image: repeating-linear-gradient(
+      135deg,
+      var(--color-accent) 0px,
+      var(--color-accent) 2px,
+      transparent 2px,
+      transparent 18px
+    );
+    mask-image: linear-gradient(to bottom, black, transparent 85%);
+  }
+
+  &__content {
+    position: relative;
+    max-width: 480px;
+    margin: 0 auto;
+    text-align: center;
+  }
+
+  &__eyebrow {
+    display: inline-block;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: var(--color-accent-soft);
+    background: rgba(199, 154, 69, 0.18);
+    border: 1px solid rgba(199, 154, 69, 0.4);
+    padding: 6px 18px;
+    border-radius: var(--radius-round);
+    margin-bottom: 16px;
+  }
+
+  &__title {
+    font-size: 26px;
+    font-weight: 800;
+    margin-bottom: 12px;
+  }
+
+  &__subtitle {
+    margin: 0;
+    font-size: 15px;
+    color: rgba(255, 255, 255, 0.85);
+    line-height: 1.8;
+  }
+}
+
+/* ---------- Card ---------- */
+.card {
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  padding: 32px 28px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  text-align: center;
+}
+
+.card--empty {
+  gap: 20px;
+  padding: 48px 28px;
+}
+
+.empty-message {
+  margin: 0;
+  font-size: 16px;
+  color: var(--color-text-muted);
+}
+
+/* ---------- Registration id ---------- */
+.registration-id {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+
+  &__label {
+    font-size: 13.5px;
+    color: var(--color-text-muted);
+    font-weight: 600;
+  }
+
+  &__value {
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--color-primary);
+    letter-spacing: 0.02em;
+    word-break: break-all;
+  }
+}
+
+/* ---------- QR code ---------- */
+.qr-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+
+  &__image {
+    width: 220px;
+    height: 220px;
+    max-width: 70vw;
+    max-height: 70vw;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-border);
+    padding: 12px;
+    background: #fff;
+  }
+
+  &__error {
+    margin: 0;
+    font-size: 13px;
+    color: var(--color-error);
+  }
+}
+
+/* ---------- Buttons (matches registration.component.scss) ---------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: var(--radius-round);
+  border: none;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 14px;
+  padding: 11px 22px;
+  text-decoration: none;
+  transition: transform 0.1s ease, opacity 0.15s ease, background 0.15s ease;
+
+  &--primary {
+    background: var(--color-primary);
+    color: #fff;
+    &:hover { background: var(--color-primary-dark); }
+  }
+
+  &--ghost {
+    background: #fff;
+    color: var(--color-primary);
+    border: 1.5px solid var(--color-primary);
+    &:hover { background: var(--color-primary-soft); }
+  }
+
+  &--lg { padding: 13px 30px; font-size: 15.5px; }
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 480px) {
+  .hero__title { font-size: 21px; }
+  .card { padding: 24px 18px; }
+  .qr-block__image { width: 180px; height: 180px; }
+}

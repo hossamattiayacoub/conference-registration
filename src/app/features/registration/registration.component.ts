@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { Router } from '@angular/router';
 import { finalize } from 'rxjs';
 
 import { RegistrationApiService } from '../../core/services/registration-api.service';
@@ -40,6 +41,7 @@ export class RegistrationComponent {
   private readonly fb = inject(FormBuilder);
   private readonly api = inject(RegistrationApiService);
   private readonly configService = inject(ConfigService);
+  private readonly router = inject(Router);
 
   readonly genderOptions = GENDER_OPTIONS;
   readonly attendanceDaysOptions = ATTENDANCE_DAYS_OPTIONS;
@@ -531,7 +533,13 @@ export class RegistrationComponent {
 
       request$.pipe(finalize(() => this.isSubmitting.set(false))).subscribe({
         next: (response) => {
-          if (response.success) {
+          if (response.success && !editingId && response.data?.Id) {
+            // New registration created - hand off to the dedicated success
+            // page with the backend-generated Id (never a client-made one).
+            this.router.navigate(['/registration-success'], {
+              state: { registrationId: response.data.Id }
+            });
+          } else if (response.success) {
             this.alert.set({
               type: 'success',
               message: editingId ? 'تم تحديث بيانات التسجيل بنجاح' : 'تم إرسال التسجيل بنجاح'

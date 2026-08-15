@@ -1,0 +1,33 @@
+<div class="page">
+  <ng-container *ngIf="registrationId() as id; else noData">
+    <header class="hero">
+      <div class="hero__pattern" aria-hidden="true"></div>
+      <div class="hero__content">
+        <span class="hero__eyebrow">تم التسجيل بنجاح 🎉</span>
+        <h1 class="hero__title">مرحباً بك في مؤتمر Profile 7 ❤️</h1>
+        <p class="hero__subtitle">تم تسجيل بياناتك بنجاح. احتفظ برمز QR الخاص بك لاستخدامه عند الحاجة إلى التحقق من تسجيلك.</p>
+      </div>
+    </header>
+
+    <main class="card">
+      <div class="registration-id">
+        <span class="registration-id__label">رقم التسجيل</span>
+        <span class="registration-id__value">{{ id }}</span>
+      </div>
+
+      <div class="qr-block">
+        <img *ngIf="qrCodeDataUrl() as qr" [src]="qr" alt="رمز QR الخاص بتسجيلك" class="qr-block__image">
+        <p class="qr-block__error" *ngIf="qrCodeError()">{{ qrCodeError() }}</p>
+      </div>
+
+      <a routerLink="/" class="btn btn--ghost btn--lg">تسجيل جديد</a>
+    </main>
+  </ng-container>
+
+  <ng-template #noData>
+    <main class="card card--empty">
+      <p class="empty-message">لا توجد بيانات تسجيل متاحة.</p>
+      <a routerLink="/" class="btn btn--primary btn--lg">العودة إلى استمارة التسجيل</a>
+    </main>
+  </ng-template>
+</div>
