@@ -50,25 +50,6 @@ export const MARRIED_SPOUSE_BOOKED_OPTIONS: { value: string; label: string }[] =
   { value: 'لا', label: 'لا' }
 ];
 
-/** Payment method options - always required (طريقة الدفع). */
-export const PAYMENT_METHOD_OPTIONS: string[] = ['كاش', 'إنستاباي'];
-
-/** Payment amount options - always required (مبلغ الدفع). */
-export const PAYMENT_AMOUNT_OPTIONS: number[] = [900, 1000, 800, 600, 500, 400, 300];
-
-/**
- * Servant (المخدوم/الخادم المسؤول) options.
- * Kept in a single constant so the list is easy to update from one place.
- */
-export const SERVANT_OPTIONS: string[] = [
-  'فادي أمجد',
-  'كيرلس طانيوس',
-  'مريم سامي',
-  'مارينا ملاك',
-  'اميره سيدهم',
-  'بولا لطفي'
-];
-
 /**
  * A room from the "Rooms" sheet, offered as an option in the accommodation
  * ("التسكين: اختار الغرفه") dropdown. Loaded dynamically via the "getRooms"
@@ -107,8 +88,10 @@ export interface Registration {
   MarriedAndYourSpousebookInConference?: string;
   /** @deprecated Field removed from the UI; kept optional only so old sheet rows still parse without error. */
   ConferenceBooking?: string;
-  PaymentMethod: string;
-  PaymentAmount: number | null;
+  /** @deprecated Field removed from the UI (طريقة الدفع); kept optional only so old sheet rows still parse without error. */
+  PaymentMethod?: string;
+  /** @deprecated Field removed from the UI (مبلغ الدفع); kept optional only so old sheet rows still parse without error. */
+  PaymentAmount?: number | null;
   ServantName: string;
   FrontIdFileId?: string;
   FrontIdFileUrl?: string;
@@ -135,9 +118,9 @@ export interface Registration {
    */
   CarLicense?: string;
   /**
-   * Google Drive URL of the uploaded payment-transfer receipt image,
-   * required only when PaymentMethod is 'إنستاباي'. Single URL column,
-   * same reasoning as CarLicense.
+   * @deprecated Field removed from the UI (يرجى رفع صورة التحويل, tied to the
+   * removed طريقة الدفع field). Kept optional only so old sheet rows/data are
+   * never deleted or overwritten - the Angular app no longer reads or writes it.
    */
   ReceiptTransferImage?: string;
   CreatedAt?: string;
@@ -169,9 +152,6 @@ export interface RegistrationSubmitPayload extends Omit<
   // New file chosen for the car-license uploader; CarLicense (inherited from
   // Registration) carries the existing URL forward when no new file is chosen.
   CarLicenseImage?: ImageUploadPayload;
-  // New file chosen for the payment-receipt uploader; ReceiptTransferImage
-  // (inherited from Registration) carries the existing URL forward otherwise.
-  ReceiptTransferImageUpload?: ImageUploadPayload;
   // Preserve existing URLs/IDs when editing without replacing an image.
   FrontIdFileId?: string;
   FrontIdFileUrl?: string;

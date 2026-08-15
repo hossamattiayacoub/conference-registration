@@ -93,7 +93,6 @@ function createRegistration(data) {
 
   const now = new Date().toISOString();
   const isCarScenario = isCarScenario_(data.AttendanceDays, data.TransportationType);
-  const isReceiptScenario = data.PaymentMethod === 'إنستاباي';
   const record = {
     Id: Utilities.getUuid(),
     FirstName: data.FirstName,
@@ -112,8 +111,11 @@ function createRegistration(data) {
       ? data.MarriedAndYourSpousebookInConference
       : '',
     ConferenceBooking: '', // حجز المؤتمر removed from the UI; column kept only for backward compatibility.
-    PaymentMethod: data.PaymentMethod,
-    PaymentAmount: data.PaymentAmount,
+    // PaymentMethod/PaymentAmount/ReceiptTransferImage (طريقة الدفع, مبلغ
+    // الدفع, يرجى رفع صورة التحويل) removed from the UI - left empty for new
+    // rows, and carried forward untouched for updates (see updateRegistration).
+    PaymentMethod: '',
+    PaymentAmount: '',
     ServantName: data.ServantName,
     Notes: data.Notes || '',
     NationalId: data.NationalId,
@@ -130,7 +132,7 @@ function createRegistration(data) {
   };
 
   attachUploadedImages_(record, data);
-  attachCarAndReceiptImages_(record, data, null, isCarScenario, isReceiptScenario);
+  attachCarLicenseImage_(record, data, null, isCarScenario);
 
   sheet.appendRow(registrationToRow_(record, headerMap));
   return createApiResponse(true, 'تم إضافة التسجيل بنجاح', record);
@@ -191,7 +193,6 @@ function updateRegistration(data) {
 
   const existingRecord = rowToRegistration_(target.row, target.headerMap);
   const isCarScenario = isCarScenario_(data.AttendanceDays, data.TransportationType);
-  const isReceiptScenario = data.PaymentMethod === 'إنستاباي';
 
   const roomId = parseRoomId_(data.RoomId);
   if (roomId !== null) {
@@ -222,8 +223,13 @@ function updateRegistration(data) {
       ? data.MarriedAndYourSpousebookInConference
       : '',
     ConferenceBooking: '', // حجز المؤتمر removed from the UI; column kept only for backward compatibility.
-    PaymentMethod: data.PaymentMethod,
-    PaymentAmount: data.PaymentAmount,
+    // PaymentMethod/PaymentAmount/ReceiptTransferImage (طريقة الدفع, مبلغ
+    // الدفع, يرجى رفع صورة التحويل) removed from the UI: no longer collected,
+    // so carried forward untouched rather than overwritten with '' - this
+    // preserves historical payment data on registrations created before
+    // this change.
+    PaymentMethod: existingRecord.PaymentMethod || '',
+    PaymentAmount: existingRecord.PaymentAmount || '',
     ServantName: data.ServantName,
     Notes: data.Notes || '',
     NationalId: data.NationalId,
@@ -233,7 +239,9 @@ function updateRegistration(data) {
     RoomId: roomId === null ? '' : roomId,
     CarNo: isCarScenario ? String(data.CarNo || '').trim() : '',
     CarLicense: isCarScenario ? existingRecord.CarLicense || '' : '',
-    ReceiptTransferImage: isReceiptScenario ? existingRecord.ReceiptTransferImage || '' : '',
+    // Same reasoning as PaymentMethod/PaymentAmount above: always carried
+    // forward untouched, never cleared/deleted by this flow anymore.
+    ReceiptTransferImage: existingRecord.ReceiptTransferImage || '',
     FrontIdFileId: existingRecord.FrontIdFileId,
     FrontIdFileUrl: existingRecord.FrontIdFileUrl,
     BackIdFileId: existingRecord.BackIdFileId,
@@ -244,16 +252,16 @@ function updateRegistration(data) {
     UpdatedAt: new Date().toISOString()
   };
 
-  // Clean up Drive files that are no longer applicable (scenario turned off).
+  // Clean up the CarLicense Drive file when that scenario turns off (car
+  // logic is unrelated to this change and unaffected). ReceiptTransferImage
+  // is no longer cleaned up here since the payment flow that used to manage
+  // its lifecycle has been removed - its historical file is left alone.
   if (!isCarScenario && existingRecord.CarLicense) {
     tryDeleteFile_(extractDriveFileIdFromUrl_(existingRecord.CarLicense));
   }
-  if (!isReceiptScenario && existingRecord.ReceiptTransferImage) {
-    tryDeleteFile_(extractDriveFileIdFromUrl_(existingRecord.ReceiptTransferImage));
-  }
 
   attachUploadedImages_(record, data, existingRecord);
-  attachCarAndReceiptImages_(record, data, existingRecord, isCarScenario, isReceiptScenario);
+  attachCarLicenseImage_(record, data, existingRecord, isCarScenario);
 
   const row = registrationToRow_(record, target.headerMap);
   sheet.getRange(target.rowIndex, 1, 1, row.length).setValues([row]);
@@ -306,45 +314,32 @@ function attachUploadedImages_(record, data, existingRecord) {
 }
 
 /**
- * Uploads CarLicense/ReceiptTransferImage when a new file was chosen. Unlike
- * attachUploadedImages_, these two fields persist only a single Drive URL
- * per sheet column (CarLicense / ReceiptTransferImage - exact names
- * required), so the old file's id is recovered by parsing it back out of
- * the previously stored URL before it is trashed.
+ * Uploads CarLicense when a new file was chosen. Unlike attachUploadedImages_,
+ * this field persists only a single Drive URL in the sheet column (CarLicense
+ * - exact name required), so the old file's id is recovered by parsing it
+ * back out of the previously stored URL before it is trashed.
+ *
+ * (Previously also handled ReceiptTransferImage alongside CarLicense, but
+ * that upload path was removed together with طريقة الدفع - its historical
+ * data is preserved untouched elsewhere, just never written to anymore.)
  */
-function attachCarAndReceiptImages_(record, data, existingRecord, isCarScenario, isReceiptScenario) {
-  if (isCarScenario) {
-    const carLicensePayload = data.CarLicenseImage;
-    if (carLicensePayload && carLicensePayload.base64Data) {
-      if (existingRecord && existingRecord.CarLicense) {
-        tryDeleteFile_(extractDriveFileIdFromUrl_(existingRecord.CarLicense));
-      }
-      const carLicenseFileName = buildDriveFileName_(record.Id, 'CarLicense', carLicensePayload.fileName);
-      const uploaded = uploadImage(
-        carLicensePayload.base64Data,
-        carLicenseFileName,
-        carLicensePayload.mimeType,
-        CONFIG.CAR_LICENSE_FOLDER_ID
-      );
-      record.CarLicense = uploaded.fileUrl;
-    }
+function attachCarLicenseImage_(record, data, existingRecord, isCarScenario) {
+  if (!isCarScenario) {
+    return;
   }
-
-  if (isReceiptScenario) {
-    const receiptPayload = data.ReceiptTransferImageUpload;
-    if (receiptPayload && receiptPayload.base64Data) {
-      if (existingRecord && existingRecord.ReceiptTransferImage) {
-        tryDeleteFile_(extractDriveFileIdFromUrl_(existingRecord.ReceiptTransferImage));
-      }
-      const receiptFileName = buildDriveFileName_(record.Id, 'ReceiptTransferImage', receiptPayload.fileName);
-      const uploaded = uploadImage(
-        receiptPayload.base64Data,
-        receiptFileName,
-        receiptPayload.mimeType,
-        CONFIG.RECEIPT_TRANSFER_FOLDER_ID
-      );
-      record.ReceiptTransferImage = uploaded.fileUrl;
+  const carLicensePayload = data.CarLicenseImage;
+  if (carLicensePayload && carLicensePayload.base64Data) {
+    if (existingRecord && existingRecord.CarLicense) {
+      tryDeleteFile_(extractDriveFileIdFromUrl_(existingRecord.CarLicense));
     }
+    const carLicenseFileName = buildDriveFileName_(record.Id, 'CarLicense', carLicensePayload.fileName);
+    const uploaded = uploadImage(
+      carLicensePayload.base64Data,
+      carLicenseFileName,
+      carLicensePayload.mimeType,
+      CONFIG.CAR_LICENSE_FOLDER_ID
+    );
+    record.CarLicense = uploaded.fileUrl;
   }
 }
 

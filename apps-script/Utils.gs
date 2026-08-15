@@ -217,22 +217,10 @@ function validateRegistration(data, isUpdate) {
     return { valid: false, message: 'الرقم القومي يجب أن يتكون من 14 رقم' };
   }
 
-  // PaymentMethod/PaymentAmount are always required now that حجز المؤتمر
-  // (ConferenceBooking) has been removed as a gating field.
-  if (!data.PaymentMethod) {
-    return { valid: false, message: 'طريقة الدفع مطلوبة' };
-  }
-  if (!data.PaymentAmount) {
-    return { valid: false, message: 'مبلغ الدفع مطلوب' };
-  }
-
-  if (data.PaymentMethod === 'إنستاباي') {
-    const hasReceiptUpload = data.ReceiptTransferImageUpload && data.ReceiptTransferImageUpload.base64Data;
-    const hasExistingReceipt = isUpdate && data.ReceiptTransferImage;
-    if (!hasReceiptUpload && !hasExistingReceipt) {
-      return { valid: false, message: 'يرجى رفع صورة التحويل' };
-    }
-  }
+  // طريقة الدفع / مبلغ الدفع / يرجى رفع صورة التحويل have been removed from
+  // the registration form - no validation for PaymentMethod, PaymentAmount
+  // or ReceiptTransferImage remains active. Historical data in those sheet
+  // columns is preserved untouched by createRegistration/updateRegistration.
 
   // TransportationType is now shown (and required) for both "بدون مواصلات" options.
   const transportationRequiredFor = ['الجمعة والسبت بدون مواصلات', 'يوم واحد بدون مواصلات'];

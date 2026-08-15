@@ -171,68 +171,26 @@
         </div>
       </section>
 
-      <!-- SECTION 7: Payment -->
+      <!-- SECTION 6: Servant -->
       <section class="section">
-        <h2 class="section__title"><span class="section__badge">06</span> الدفع</h2>
-        <div class="field">
-          <label>طريقة الدفع <span class="required">*</span></label>
-          <div class="radio-row">
-            <label class="radio-card" *ngFor="let method of paymentMethodOptions">
-              <input type="radio" formControlName="paymentMethod" [value]="method">
-              <span>{{ method }}</span>
-            </label>
-          </div>
-          <small class="error" *ngIf="errorFor('paymentMethod')">{{ errorFor('paymentMethod') }}</small>
-        </div>
-
-        <div class="field">
-          <label>مبلغ الدفع <span class="required">*</span></label>
-          <div class="radio-row radio-row--wrap">
-            <label class="radio-card" *ngFor="let amount of paymentAmountOptions">
-              <input type="radio" formControlName="paymentAmount" [value]="amount">
-              <span>{{ amount }} جنيه</span>
-            </label>
-          </div>
-          <small class="error" *ngIf="errorFor('paymentAmount')">{{ errorFor('paymentAmount') }}</small>
-        </div>
-
-        <div class="conditional-field" *ngIf="showReceiptTransferField">
-          <div class="upload-box">
-            <span class="upload-box__label">يرجى رفع صورة التحويل <span class="required">*</span></span>
-            <div class="upload-box__area">
-              <img *ngIf="previews.receiptTransferImage" [src]="previews.receiptTransferImage" alt="معاينة صورة التحويل">
-              <label class="upload-box__cta" *ngIf="!previews.receiptTransferImage">
-                <input type="file" accept="image/png,image/jpeg,image/webp" (change)="onFileSelected($event, 'receiptTransferImage')" hidden>
-                اختر صورة
-              </label>
-            </div>
-            <div class="upload-box__actions" *ngIf="previews.receiptTransferImage">
-              <label class="btn btn--ghost btn--sm">
-                تغيير الصورة
-                <input type="file" accept="image/png,image/jpeg,image/webp" (change)="onFileSelected($event, 'receiptTransferImage')" hidden>
-              </label>
-              <button type="button" class="btn btn--danger-ghost btn--sm" (click)="removeImage('receiptTransferImage')">إزالة</button>
-            </div>
-            <small class="error" *ngIf="errorFor('receiptTransferImage')">{{ errorFor('receiptTransferImage') }}</small>
-          </div>
-        </div>
-      </section>
-
-      <!-- SECTION 8: Servant -->
-      <section class="section">
-        <h2 class="section__title"><span class="section__badge">07</span> الخادم المسؤول</h2>
+        <h2 class="section__title"><span class="section__badge">06</span> الخادم المسؤول</h2>
         <div class="radio-list">
-          <label class="radio-card radio-card--wide" *ngFor="let servant of servantOptions">
+          <label class="radio-card radio-card--wide" *ngFor="let servant of servantOptions()">
             <input type="radio" formControlName="servantName" [value]="servant">
             <span>{{ servant }}</span>
           </label>
         </div>
         <small class="error" *ngIf="errorFor('servantName')">{{ errorFor('servantName') }}</small>
+        <small class="hint" *ngIf="isLoadingServantOptions()">جاري تحميل قائمة الخدام...</small>
+        <div class="field__inline-error" *ngIf="servantOptionsError() && !isLoadingServantOptions()">
+          <small class="error">{{ servantOptionsError() }}</small>
+          <button type="button" class="btn btn--ghost btn--sm" (click)="loadServantOptions()">إعادة المحاولة</button>
+        </div>
       </section>
 
       <!-- SECTION 8B: Accommodation (room selection) -->
       <section class="section">
-        <h2 class="section__title"><span class="section__badge">08</span> التسكين: اختار الغرفه</h2>
+        <h2 class="section__title"><span class="section__badge">07</span> التسكين: اختار الغرفه</h2>
         <div class="field">
           <label for="roomId">التسكين: اختار الغرفه <span class="required">*</span></label>
           <select id="roomId" formControlName="roomId" [class.invalid]="errorFor('roomId')">
@@ -263,7 +221,7 @@
 
       <!-- SECTION 9: ID Images -->
       <section class="section">
-        <h2 class="section__title"><span class="section__badge">09</span> صور البطاقة الشخصية</h2>
+        <h2 class="section__title"><span class="section__badge">08</span> صور البطاقة الشخصية</h2>
         <div class="grid grid--2">
           <div class="upload-box">
             <span class="upload-box__label">صورة البطاقة الأمامية <span class="required">*</span></span>
@@ -307,7 +265,7 @@
 
       <!-- SECTION 10: Personal photo -->
       <section class="section">
-        <h2 class="section__title"><span class="section__badge">10</span> الصورة الشخصية</h2>
+        <h2 class="section__title"><span class="section__badge">09</span> الصورة الشخصية</h2>
         <div class="personal-photo">
           <div class="personal-photo__circle">
             <img *ngIf="previews.personalPhoto" [src]="previews.personalPhoto" alt="معاينة الصورة الشخصية">
@@ -323,7 +281,7 @@
 
       <!-- SECTION 11: Notes -->
       <section class="section">
-        <h2 class="section__title"><span class="section__badge">11</span> ملاحظات</h2>
+        <h2 class="section__title"><span class="section__badge">10</span> ملاحظات</h2>
         <div class="field">
           <textarea formControlName="notes" rows="4" placeholder="أي ملاحظات إضافية (اختياري)"></textarea>
         </div>

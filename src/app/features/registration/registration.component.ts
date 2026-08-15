@@ -4,17 +4,15 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { finalize } from 'rxjs';
 
 import { RegistrationApiService } from '../../core/services/registration-api.service';
+import { ConfigService } from '../../core/services/config.service';
 import {
   ATTENDANCE_DAY_OPTIONS,
   ATTENDANCE_DAYS_OPTIONS,
   GENDER_OPTIONS,
   MARRIED_SPOUSE_BOOKED_OPTIONS,
-  PAYMENT_AMOUNT_OPTIONS,
-  PAYMENT_METHOD_OPTIONS,
   Registration,
   RegistrationSubmitPayload,
   Room,
-  SERVANT_OPTIONS,
   TRANSPORTATION_TYPE_OPTIONS
 } from '../../core/models/registration.model';
 import { arabicTextValidator } from '../../shared/validators/arabic-text.validator';
@@ -24,7 +22,7 @@ import { imageFileValidator } from '../../shared/validators/image-file.validator
 import { notBlankValidator } from '../../shared/validators/not-blank.validator';
 import { fileToUploadPayload } from '../../shared/utils/file-to-base64.util';
 
-type ImageFieldKey = 'frontIdImage' | 'backIdImage' | 'personalPhoto' | 'carLicense' | 'receiptTransferImage';
+type ImageFieldKey = 'frontIdImage' | 'backIdImage' | 'personalPhoto' | 'carLicense';
 
 interface AlertState {
   type: 'success' | 'error' | 'info';
@@ -41,15 +39,19 @@ interface AlertState {
 export class RegistrationComponent {
   private readonly fb = inject(FormBuilder);
   private readonly api = inject(RegistrationApiService);
+  private readonly configService = inject(ConfigService);
 
   readonly genderOptions = GENDER_OPTIONS;
   readonly attendanceDaysOptions = ATTENDANCE_DAYS_OPTIONS;
   readonly transportationTypeOptions = TRANSPORTATION_TYPE_OPTIONS;
   readonly attendanceDayOptions = ATTENDANCE_DAY_OPTIONS;
   readonly marriedSpouseBookedOptions = MARRIED_SPOUSE_BOOKED_OPTIONS;
-  readonly paymentMethodOptions = PAYMENT_METHOD_OPTIONS;
-  readonly paymentAmountOptions = PAYMENT_AMOUNT_OPTIONS;
-  readonly servantOptions = SERVANT_OPTIONS;
+
+  // الخادم - loaded dynamically from /assets/config.json (see ConfigService)
+  // instead of being hardcoded, so new options don't require a code change.
+  readonly servantOptions = signal<string[]>([]);
+  readonly isLoadingServantOptions = signal(false);
+  readonly servantOptionsError = signal<string | null>(null);
 
   readonly isSubmitting = signal(false);
   readonly isSearching = signal(false);
@@ -68,8 +70,7 @@ export class RegistrationComponent {
     frontIdImage: null,
     backIdImage: null,
     personalPhoto: null,
-    carLicense: null,
-    receiptTransferImage: null
+    carLicense: null
   };
 
   // Preserves existing Drive file id/url pairs while editing, so we don't
@@ -95,10 +96,6 @@ export class RegistrationComponent {
     carNo: this.fb.control(''),
     carLicense: this.fb.control<File | string | null>(null),
 
-    paymentMethod: this.fb.control('', [Validators.required]),
-    paymentAmount: this.fb.control<number | null>(null, [Validators.required]),
-    receiptTransferImage: this.fb.control<File | string | null>(null),
-
     servantName: this.fb.control('', [Validators.required]),
 
     frontIdImage: this.fb.control<File | string | null>(null, [Validators.required, imageFileValidator()]),
@@ -120,11 +117,8 @@ export class RegistrationComponent {
 
     this.form.get('transportationType')!.valueChanges.subscribe(() => this.updateCarFieldValidators());
 
-    this.form
-      .get('paymentMethod')!
-      .valueChanges.subscribe((value) => this.updateReceiptValidators(value));
-
     this.loadRooms();
+    this.loadServantOptions();
   }
 
   /**
@@ -226,31 +220,17 @@ export class RegistrationComponent {
     this.setCarFieldValidators(this.showCarFields);
   }
 
-  /** ReceiptTransferImage applies only when PaymentMethod is "إنستاباي". */
-  get showReceiptTransferField(): boolean {
-    return this.form.get('paymentMethod')!.value === 'إنستاباي';
-  }
-
-  /** Pure setter: applies (or removes) the ReceiptTransferImage validators without touching its value. */
-  private setReceiptValidators(isRequired: boolean): void {
-    const receipt = this.form.get('receiptTransferImage')!;
-    if (isRequired) {
-      receipt.setValidators([Validators.required, imageFileValidator()]);
-    } else {
-      receipt.clearValidators();
-    }
-    receipt.updateValueAndValidity({ emitEvent: false });
-  }
-
-  /** Re-evaluates showReceiptTransferField and clears ReceiptTransferImage whenever the scenario turns off. */
-  private updateReceiptValidators(paymentMethod: string | null): void {
-    const isRequired = paymentMethod === 'إنستاباي';
-    if (!isRequired) {
-      this.form.get('receiptTransferImage')!.setValue(null, { emitEvent: false });
-      this.previews.receiptTransferImage = null;
-      delete this.existingImageRefs.ReceiptTransferImage;
-    }
-    this.setReceiptValidators(isRequired);
+  /** Loads الخادم options from /assets/config.json. New options added there appear automatically - no code change needed. */
+  loadServantOptions(): void {
+    this.isLoadingServantOptions.set(true);
+    this.servantOptionsError.set(null);
+    this.configService
+      .getConfig()
+      .pipe(finalize(() => this.isLoadingServantOptions.set(false)))
+      .subscribe({
+        next: (config) => this.servantOptions.set(config.servantOptions ?? []),
+        error: () => this.servantOptionsError.set('تعذر تحميل قائمة الخدام، برجاء إعادة المحاولة')
+      });
   }
 
   /** Loads rooms with availability for the accommodation dropdown, excluding the registration currently being edited (if any) from occupancy. */
@@ -352,13 +332,6 @@ export class RegistrationComponent {
         invalidImageType: 'صيغة الصورة غير مدعومة (JPG, PNG, WEBP فقط)',
         imageTooLarge: 'حجم الصورة أكبر من 10 ميجابايت'
       },
-      paymentMethod: { required: 'طريقة الدفع مطلوبة' },
-      paymentAmount: { required: 'مبلغ الدفع مطلوب' },
-      receiptTransferImage: {
-        required: 'يرجى رفع صورة التحويل',
-        invalidImageType: 'صيغة الصورة غير مدعومة (JPG, PNG, WEBP فقط)',
-        imageTooLarge: 'حجم الصورة أكبر من 10 ميجابايت'
-      },
       servantName: { required: 'الخادم مطلوب' },
       roomId: { required: 'التسكين مطلوب' },
       frontIdImage: {
@@ -419,10 +392,8 @@ export class RegistrationComponent {
     } else if (field === 'personalPhoto') {
       delete this.existingImageRefs.PersonalPhotoFileId;
       delete this.existingImageRefs.PersonalPhotoFileUrl;
-    } else if (field === 'carLicense') {
-      delete this.existingImageRefs.CarLicense;
     } else {
-      delete this.existingImageRefs.ReceiptTransferImage;
+      delete this.existingImageRefs.CarLicense;
     }
   }
 
@@ -488,8 +459,7 @@ export class RegistrationComponent {
       BackIdFileUrl: registration.BackIdFileUrl,
       PersonalPhotoFileId: registration.PersonalPhotoFileId,
       PersonalPhotoFileUrl: registration.PersonalPhotoFileUrl,
-      CarLicense: registration.CarLicense,
-      ReceiptTransferImage: registration.ReceiptTransferImage
+      CarLicense: registration.CarLicense
     };
 
     // Apply the correct required/hidden state for the saved AttendanceDays
@@ -500,9 +470,6 @@ export class RegistrationComponent {
     const isCarRequired =
       registration.AttendanceDays === 'يوم واحد بدون مواصلات' && registration.TransportationType === 'Private Car';
     this.setCarFieldValidators(isCarRequired);
-
-    const isReceiptRequired = registration.PaymentMethod === 'إنستاباي';
-    this.setReceiptValidators(isReceiptRequired);
 
     this.form.patchValue({
       firstName: registration.FirstName,
@@ -519,9 +486,6 @@ export class RegistrationComponent {
       marriedAndYourSpousebookInConference: registration.MarriedAndYourSpousebookInConference ?? '',
       carNo: registration.CarNo ?? '',
       carLicense: registration.CarLicense ?? null,
-      paymentMethod: registration.PaymentMethod,
-      paymentAmount: registration.PaymentAmount ?? null,
-      receiptTransferImage: registration.ReceiptTransferImage ?? null,
       servantName: registration.ServantName,
       frontIdImage: registration.FrontIdFileUrl ?? null,
       backIdImage: registration.BackIdFileUrl ?? null,
@@ -539,7 +503,6 @@ export class RegistrationComponent {
     this.previews.backIdImage = registration.BackIdFileUrl ?? null;
     this.previews.personalPhoto = registration.PersonalPhotoFileUrl ?? null;
     this.previews.carLicense = registration.CarLicense ?? null;
-    this.previews.receiptTransferImage = registration.ReceiptTransferImage ?? null;
   }
 
   async submit(): Promise<void> {
@@ -599,7 +562,6 @@ export class RegistrationComponent {
     const isTransportationVisible =
       raw.attendanceDays === 'الجمعة والسبت بدون مواصلات' || raw.attendanceDays === 'يوم واحد بدون مواصلات';
     const isCarScenario = raw.attendanceDays === 'يوم واحد بدون مواصلات' && raw.transportationType === 'Private Car';
-    const isReceiptScenario = raw.paymentMethod === 'إنستاباي';
 
     const payload: RegistrationSubmitPayload = {
       FirstName: raw.firstName!,
@@ -619,8 +581,6 @@ export class RegistrationComponent {
           ? raw.marriedAndYourSpousebookInConference ?? ''
           : '',
       CarNo: isCarScenario ? (raw.carNo ?? '').trim() : '',
-      PaymentMethod: raw.paymentMethod!,
-      PaymentAmount: raw.paymentAmount!,
       ServantName: raw.servantName!,
       Notes: raw.notes ?? '',
       NationalId: raw.nationalId!,
@@ -639,9 +599,6 @@ export class RegistrationComponent {
     }
     if (isCarScenario && raw.carLicense instanceof File) {
       payload.CarLicenseImage = await fileToUploadPayload(raw.carLicense);
-    }
-    if (isReceiptScenario && raw.receiptTransferImage instanceof File) {
-      payload.ReceiptTransferImageUpload = await fileToUploadPayload(raw.receiptTransferImage);
     }
 
     return payload;
@@ -663,9 +620,6 @@ export class RegistrationComponent {
       marriedAndYourSpousebookInConference: '',
       carNo: '',
       carLicense: null,
-      paymentMethod: '',
-      paymentAmount: null,
-      receiptTransferImage: null,
       servantName: '',
       frontIdImage: null,
       backIdImage: null,
@@ -678,7 +632,6 @@ export class RegistrationComponent {
     this.previews.backIdImage = null;
     this.previews.personalPhoto = null;
     this.previews.carLicense = null;
-    this.previews.receiptTransferImage = null;
     this.existingImageRefs = {};
     this.editingId.set(null);
     this.duplicateId.set(null);
