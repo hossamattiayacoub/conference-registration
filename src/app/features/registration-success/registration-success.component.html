@@ -18,6 +18,16 @@
       <div class="qr-block">
         <img *ngIf="qrCodeDataUrl() as qr" [src]="qr" alt="رمز QR الخاص بتسجيلك" class="qr-block__image">
         <p class="qr-block__error" *ngIf="qrCodeError()">{{ qrCodeError() }}</p>
+
+        <button
+          type="button"
+          class="btn btn--primary"
+          *ngIf="qrCodeDataUrl()"
+          (click)="downloadQrCode()"
+        >
+          حفظ QR Code
+        </button>
+        <p class="qr-block__error" *ngIf="downloadError()">{{ downloadError() }}</p>
       </div>
 
       <a routerLink="/" class="btn btn--ghost btn--lg">تسجيل جديد</a>

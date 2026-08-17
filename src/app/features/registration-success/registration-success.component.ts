@@ -20,6 +20,7 @@ export class RegistrationSuccessComponent {
   readonly registrationId = signal<string | null>(null);
   readonly qrCodeDataUrl = signal<string | null>(null);
   readonly qrCodeError = signal<string | null>(null);
+  readonly downloadError = signal<string | null>(null);
 
   constructor(private readonly router: Router) {
     // getCurrentNavigation() is only populated while the navigation that
@@ -43,5 +44,27 @@ export class RegistrationSuccessComponent {
     QRCode.toDataURL(id, { width: 260, margin: 2 })
       .then((dataUrl) => this.qrCodeDataUrl.set(dataUrl))
       .catch(() => this.qrCodeError.set('تعذر إنشاء رمز QR'));
+  }
+
+  /**
+   * Downloads exactly the QR code already displayed on the page - the same
+   * data URL, never a freshly generated one - as a PNG file. No new QR code
+   * is created, so its payload is guaranteed identical to what's on screen.
+   */
+  downloadQrCode(): void {
+    const dataUrl = this.qrCodeDataUrl();
+    const id = this.registrationId();
+    if (!dataUrl || !id) {
+      this.downloadError.set('تعذر حفظ رمز QR، برجاء المحاولة مرة أخرى.');
+      return;
+    }
+    this.downloadError.set(null);
+
+    const link = document.createElement('a');
+    link.href = dataUrl;
+    link.download = `Profile7-QR-${id}.png`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   }
 }
