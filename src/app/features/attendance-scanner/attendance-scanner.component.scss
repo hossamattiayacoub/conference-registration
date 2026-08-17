@@ -1,0 +1,195 @@
+:host {
+  display: block;
+}
+
+.page {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 0 20px 64px;
+}
+
+/* ---------- Hero header (matches registration/success pages) ---------- */
+.hero {
+  position: relative;
+  overflow: hidden;
+  margin: 0 -20px 28px;
+  padding: 40px 32px 34px;
+  background: linear-gradient(160deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
+  color: #fff;
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+
+  &__pattern {
+    position: absolute;
+    inset: 0;
+    opacity: 0.16;
+    background-image: repeating-linear-gradient(
+      135deg,
+      var(--color-accent) 0px,
+      var(--color-accent) 2px,
+      transparent 2px,
+      transparent 18px
+    );
+    mask-image: linear-gradient(to bottom, black, transparent 85%);
+  }
+
+  &__content {
+    position: relative;
+    max-width: 480px;
+    margin: 0 auto;
+    text-align: center;
+  }
+
+  &__eyebrow {
+    display: inline-block;
+    font-size: 13px;
+    letter-spacing: 0.04em;
+    color: var(--color-accent-soft);
+    background: rgba(199, 154, 69, 0.18);
+    border: 1px solid rgba(199, 154, 69, 0.4);
+    padding: 4px 14px;
+    border-radius: var(--radius-round);
+    margin-bottom: 14px;
+  }
+
+  &__title {
+    font-size: 24px;
+    font-weight: 800;
+    margin-bottom: 8px;
+  }
+
+  &__subtitle {
+    margin: 0;
+    font-size: 14.5px;
+    color: rgba(255, 255, 255, 0.85);
+    line-height: 1.7;
+  }
+}
+
+/* ---------- Card ---------- */
+.card {
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  padding: 28px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  text-align: center;
+}
+
+/* ---------- Camera view ---------- */
+.scanner-wrap {
+  width: 100%;
+}
+
+.scanner-reader {
+  width: 100%;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: #000;
+
+  /* html5-qrcode injects its own <video>/<canvas> elements here */
+  ::ng-deep video,
+  ::ng-deep canvas {
+    width: 100% !important;
+    border-radius: var(--radius-md);
+  }
+}
+
+.scanner-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 14px;
+  color: var(--color-text-muted);
+}
+
+.spinner {
+  width: 15px;
+  height: 15px;
+  border: 2px solid var(--color-border);
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ---------- Result / error panel ---------- */
+.result-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 0;
+
+  &__icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 26px;
+    font-weight: 800;
+
+    &--success { background: var(--color-success-soft); color: var(--color-success); }
+    &--info { background: var(--color-primary-soft); color: var(--color-primary-dark); }
+    &--error { background: var(--color-error-soft); color: var(--color-error); }
+  }
+
+  &__message {
+    margin: 0;
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--color-text);
+  }
+
+  &__id {
+    margin: 0;
+    font-size: 14px;
+    color: var(--color-text-muted);
+  }
+}
+
+/* ---------- Buttons (matches the rest of the app) ---------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: var(--radius-round);
+  border: none;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 14px;
+  padding: 11px 22px;
+  text-decoration: none;
+  transition: transform 0.1s ease, opacity 0.15s ease, background 0.15s ease;
+
+  &--primary {
+    background: var(--color-primary);
+    color: #fff;
+    &:hover { background: var(--color-primary-dark); }
+  }
+
+  &--ghost {
+    background: #fff;
+    color: var(--color-primary);
+    border: 1.5px solid var(--color-primary);
+    &:hover { background: var(--color-primary-soft); }
+  }
+
+  &--lg { padding: 13px 30px; font-size: 15.5px; }
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 480px) {
+  .hero__title { font-size: 20px; }
+  .card { padding: 22px 16px; }
+}

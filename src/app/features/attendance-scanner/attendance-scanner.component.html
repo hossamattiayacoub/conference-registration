@@ -1,0 +1,41 @@
+<div class="page">
+  <header class="hero">
+    <div class="hero__pattern" aria-hidden="true"></div>
+    <div class="hero__content">
+      <span class="hero__eyebrow">تسجيل الحضور</span>
+      <h1 class="hero__title">تسجيل الحضور</h1>
+      <p class="hero__subtitle">قم بمسح رمز QR الخاص بالمشارك لتسجيل الحضور</p>
+    </div>
+  </header>
+
+  <main class="card">
+    <div class="scanner-wrap">
+      <div
+        [id]="scannerElementId"
+        class="scanner-reader"
+        [hidden]="screenState() === 'result' || screenState() === 'camera-error'"
+      ></div>
+    </div>
+
+    <p class="scanner-status" *ngIf="screenState() === 'starting'">جاري تشغيل الكاميرا...</p>
+    <p class="scanner-status" *ngIf="screenState() === 'scanning'">جاري مسح رمز QR...</p>
+    <p class="scanner-status" *ngIf="screenState() === 'verifying'">
+      <span class="spinner spinner--dark"></span> جاري التحقق من التسجيل...
+    </p>
+
+    <div class="result-panel" *ngIf="screenState() === 'result'">
+      <span class="result-panel__icon" [class]="'result-panel__icon--' + resultTone">{{ resultIcon }}</span>
+      <p class="result-panel__message">{{ resultMessage() }}</p>
+      <p class="result-panel__id" *ngIf="resultId()">رقم التسجيل: {{ resultId() }}</p>
+      <button type="button" class="btn btn--primary btn--lg" (click)="scanAnother()">مسح QR آخر</button>
+    </div>
+
+    <div class="result-panel" *ngIf="screenState() === 'camera-error'">
+      <span class="result-panel__icon result-panel__icon--error">✕</span>
+      <p class="result-panel__message">{{ cameraErrorMessage() }}</p>
+      <button type="button" class="btn btn--primary btn--lg" (click)="retryCamera()">إعادة المحاولة</button>
+    </div>
+
+    <a routerLink="/" class="btn btn--ghost">العودة إلى الصفحة الرئيسية</a>
+  </main>
+</div>

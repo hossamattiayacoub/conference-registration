@@ -20,6 +20,12 @@ const CONFIG = {
   ROOMS_SHEET_NAME: 'Rooms',
   ROOMS_HEADERS: ['Id', 'Name', 'Capacity', 'Gender', 'Description'],
 
+  // AttendanceList sheet - already exists in the same spreadsheet. Written
+  // to only by recordAttendance() (QR attendance scanner). Single column:
+  // the Registeration "Id" of whoever has checked in.
+  ATTENDANCE_SHEET_NAME: 'AttendanceList',
+  ATTENDANCE_HEADERS: ['id'],
+
   // Google Drive folder IDs used to store uploaded images.
   // Replace these placeholders with real folder IDs before deploying.
   FRONT_ID_FOLDER_ID: 'PASTE_FRONT_ID_FOLDER_ID_HERE',

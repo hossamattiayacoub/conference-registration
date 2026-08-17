@@ -526,3 +526,47 @@ function validateRoomCapacity_(roomId, excludeRegistrationId) {
   }
   return { valid: true, message: '' };
 }
+
+/* ==========================================================================
+ * AttendanceList (QR attendance scanner - /attendance-scanner)
+ * ========================================================================== */
+
+/**
+ * Returns the existing AttendanceList sheet, writing its header row only if
+ * the sheet is completely empty. The sheet itself is never created here -
+ * it is expected to already exist in the spreadsheet.
+ */
+function getAttendanceListSheet_() {
+  const spreadsheet = SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID);
+  const sheet = spreadsheet.getSheetByName(CONFIG.ATTENDANCE_SHEET_NAME);
+  if (!sheet) {
+    throw new Error('تعذر العثور على شيت AttendanceList');
+  }
+  if (sheet.getLastRow() === 0) {
+    sheet.getRange(1, 1, 1, CONFIG.ATTENDANCE_HEADERS.length).setValues([CONFIG.ATTENDANCE_HEADERS]);
+    sheet.setFrozenRows(1);
+  }
+  return sheet;
+}
+
+/** Returns true if `id` already has a row in AttendanceList. */
+function attendanceRecordExists_(sheet, id) {
+  const headerMap = getHeaderIndexMapFor_(sheet, CONFIG.ATTENDANCE_HEADERS);
+  const idCol = headerMap['id'];
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2 || idCol === undefined) {
+    return false;
+  }
+  const values = sheet.getRange(2, 1, lastRow - 1, sheet.getLastColumn()).getValues();
+  for (let i = 0; i < values.length; i++) {
+    if (String(values[i][idCol]).trim() === String(id).trim()) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/** Builds the { success, status, message, data: { id } } envelope used by recordAttendance responses. */
+function createAttendanceResponse_(success, status, message, id) {
+  return { success: success, status: status, message: message, data: { id: id } };
+}

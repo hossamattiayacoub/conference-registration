@@ -3,6 +3,7 @@ import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { ApiResponse } from '../models/api-response.model';
+import { AttendanceResponse } from '../models/attendance.model';
 import { Registration, RegistrationSubmitPayload, Room } from '../models/registration.model';
 
 /**
@@ -69,5 +70,18 @@ export class RegistrationApiService {
       params = params.set('excludeId', excludeRegistrationId);
     }
     return this.http.get<ApiResponse<Room[]>>(this.apiUrl, { params });
+  }
+
+  /**
+   * Records attendance for a scanned QR code (/attendance-scanner). `id` is
+   * the Registeration sheet's "Id" value - the same Id encoded into the QR
+   * code on the registration success page.
+   */
+  recordAttendance(id: string): Observable<AttendanceResponse> {
+    return this.http.post<AttendanceResponse>(
+      this.apiUrl,
+      JSON.stringify({ action: 'recordAttendance', id }),
+      this.postOptions
+    );
   }
 }
