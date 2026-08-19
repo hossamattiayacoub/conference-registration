@@ -10,6 +10,7 @@ import {
   ATTENDANCE_DAY_OPTIONS,
   ATTENDANCE_DAYS_OPTIONS,
   GENDER_OPTIONS,
+  HAS_FRIENDS_FOR_ACCOMMODATION_OPTIONS,
   MARRIED_SPOUSE_BOOKED_OPTIONS,
   Registration,
   RegistrationSubmitPayload,
@@ -48,6 +49,7 @@ export class RegistrationComponent {
   readonly transportationTypeOptions = TRANSPORTATION_TYPE_OPTIONS;
   readonly attendanceDayOptions = ATTENDANCE_DAY_OPTIONS;
   readonly marriedSpouseBookedOptions = MARRIED_SPOUSE_BOOKED_OPTIONS;
+  readonly hasFriendsForAccommodationOptions = HAS_FRIENDS_FOR_ACCOMMODATION_OPTIONS;
 
   // الخادم - loaded dynamically from /assets/config.json (see ConfigService)
   // instead of being hardcoded, so new options don't require a code change.
@@ -106,7 +108,8 @@ export class RegistrationComponent {
 
     notes: this.fb.control(''),
     nationalId: this.fb.control('', [Validators.required, nationalIdValidator()]),
-    roomId: this.fb.control<number | null>(null, [Validators.required])
+    hasFriendsForAccommodation: this.fb.control('', [Validators.required]),
+    roomId: this.fb.control<number | null>(null)
   });
 
   constructor() {
@@ -118,6 +121,10 @@ export class RegistrationComponent {
       });
 
     this.form.get('transportationType')!.valueChanges.subscribe(() => this.updateCarFieldValidators());
+
+    this.form
+      .get('hasFriendsForAccommodation')!
+      .valueChanges.subscribe(() => this.updateRoomFieldValidators());
 
     this.loadRooms();
     this.loadServantOptions();
@@ -235,6 +242,35 @@ export class RegistrationComponent {
       });
   }
 
+  /** True when the person wants to room with friends - shows/requires RoomId. */
+  get showRoomDropdown(): boolean {
+    return this.form.get('hasFriendsForAccommodation')!.value === 'نعم';
+  }
+
+  /** True when staff will assign a room later - shows the informational note instead of the dropdown. */
+  get showNoRoomMessage(): boolean {
+    return this.form.get('hasFriendsForAccommodation')!.value === 'لا';
+  }
+
+  /** Pure setter: applies (or removes) the RoomId validator without touching its value. */
+  private setRoomFieldValidators(isRequired: boolean): void {
+    const roomId = this.form.get('roomId')!;
+    if (isRequired) {
+      roomId.setValidators([Validators.required]);
+    } else {
+      roomId.clearValidators();
+    }
+    roomId.updateValueAndValidity({ emitEvent: false });
+  }
+
+  /** Re-evaluates showRoomDropdown and clears RoomId whenever the person no longer wants to pick a room. */
+  private updateRoomFieldValidators(): void {
+    if (!this.showRoomDropdown) {
+      this.form.get('roomId')!.setValue(null, { emitEvent: false });
+    }
+    this.setRoomFieldValidators(this.showRoomDropdown);
+  }
+
   /** Loads rooms with availability for the accommodation dropdown, excluding the registration currently being edited (if any) from occupancy. */
   loadRooms(): void {
     this.isLoadingRooms.set(true);
@@ -336,6 +372,7 @@ export class RegistrationComponent {
       },
       servantName: { required: 'الخادم مطلوب' },
       roomId: { required: 'التسكين مطلوب' },
+      hasFriendsForAccommodation: { required: 'اختيار التسكين مع الأصدقاء مطلوب' },
       frontIdImage: {
         required: 'صورة البطاقة الأمامية مطلوبة',
         invalidImageType: 'صيغة الصورة غير مدعومة (JPG, PNG, WEBP فقط)',
@@ -473,6 +510,9 @@ export class RegistrationComponent {
       registration.AttendanceDays === 'يوم واحد بدون مواصلات' && registration.TransportationType === 'Private Car';
     this.setCarFieldValidators(isCarRequired);
 
+    const isRoomRequired = registration.HasFriendsForAccommodation === 'نعم';
+    this.setRoomFieldValidators(isRoomRequired);
+
     this.form.patchValue({
       firstName: registration.FirstName,
       secondName: registration.SecondName,
@@ -494,7 +534,8 @@ export class RegistrationComponent {
       personalPhoto: registration.PersonalPhotoFileUrl ?? null,
       notes: registration.Notes ?? '',
       nationalId: registration.NationalId,
-      roomId: registration.RoomId ?? null
+      hasFriendsForAccommodation: registration.HasFriendsForAccommodation ?? '',
+      roomId: isRoomRequired ? registration.RoomId ?? null : null
     });
 
     // Re-load rooms now that editingId is set, so this registration's own
@@ -592,7 +633,8 @@ export class RegistrationComponent {
       ServantName: raw.servantName!,
       Notes: raw.notes ?? '',
       NationalId: raw.nationalId!,
-      RoomId: raw.roomId ?? null,
+      HasFriendsForAccommodation: raw.hasFriendsForAccommodation!,
+      RoomId: raw.hasFriendsForAccommodation === 'نعم' ? raw.roomId ?? null : null,
       ...this.existingImageRefs
     };
 
@@ -634,6 +676,7 @@ export class RegistrationComponent {
       personalPhoto: null,
       notes: '',
       nationalId: '',
+      hasFriendsForAccommodation: '',
       roomId: null
     });
     this.previews.frontIdImage = null;

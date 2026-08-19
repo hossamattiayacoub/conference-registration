@@ -250,10 +250,17 @@ function validateRegistration(data, isUpdate) {
     }
   }
 
-  // التسكين: اختار الغرفه - RoomId is now mandatory. parseRoomId_ (Code.gs)
-  // returns null for empty/undefined/non-numeric values, so this single
-  // check also covers "invalid" RoomId values.
-  if (parseRoomId_(data.RoomId) === null) {
+  // في التسكين هل لديك اصدقاء... - required, gates whether RoomId is required.
+  const hasFriendsValues = ['نعم', 'لا'];
+  if (hasFriendsValues.indexOf(data.HasFriendsForAccommodation) === -1) {
+    return { valid: false, message: 'اختيار التسكين مع الأصدقاء مطلوب' };
+  }
+
+  // التسكين: اختار الغرفه - RoomId is required only when the person wants to
+  // room with friends; otherwise staff assign a room later and RoomId must
+  // stay empty. parseRoomId_ (Code.gs) returns null for empty/undefined/
+  // non-numeric values, so this single check also covers "invalid" RoomId.
+  if (data.HasFriendsForAccommodation === 'نعم' && parseRoomId_(data.RoomId) === null) {
     return { valid: false, message: 'التسكين مطلوب' };
   }
 

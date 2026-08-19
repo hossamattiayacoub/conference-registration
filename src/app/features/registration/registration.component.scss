@@ -226,6 +226,18 @@
   }
 }
 
+/* Informational note (e.g. "سيتم التسكين من قبل المسؤلين") - clearly visible but not error-styled. */
+.info-note {
+  padding: 14px 16px;
+  border-radius: var(--radius-sm);
+  background: var(--color-accent-soft);
+  border: 1px solid rgba(199, 154, 69, 0.35);
+  color: var(--color-primary-dark);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.7;
+}
+
 /* ---------- Radio cards ---------- */
 .radio-row {
   display: flex;

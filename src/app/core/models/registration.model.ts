@@ -51,6 +51,15 @@ export const MARRIED_SPOUSE_BOOKED_OPTIONS: { value: string; label: string }[] =
 ];
 
 /**
+ * "في التسكين هل لديك اصدقاء (مجموعه) بالمؤتمر ترغب بالسكن معهم في نفس
+ * الغرفه؟" - gates whether the room-selection dropdown (RoomId) is shown/required.
+ */
+export const HAS_FRIENDS_FOR_ACCOMMODATION_OPTIONS: { value: string; label: string }[] = [
+  { value: 'نعم', label: 'نعم' },
+  { value: 'لا', label: 'لا' }
+];
+
+/**
  * A room from the "Rooms" sheet, offered as an option in the accommodation
  * ("التسكين: اختار الغرفه") dropdown. Loaded dynamically via the "getRooms"
  * API action, which also computes occupancy/availability server-side.
@@ -107,7 +116,9 @@ export interface Registration {
    * no longer reads or writes this field.
    */
   AccommodationFamilyMemberId?: string | null;
-  /** Selected room's Id from the Rooms sheet ("التسكين: اختار الغرفه"). Optional. */
+  /** "في التسكين هل لديك اصدقاء..." - gates whether RoomId is shown/required. */
+  HasFriendsForAccommodation?: string;
+  /** Selected room's Id from the Rooms sheet ("التسكين: اختار الغرفه"). Required only when HasFriendsForAccommodation === 'نعم'. */
   RoomId?: number | null;
   /** Car number - required only when AttendanceDays is 'يوم واحد بدون مواصلات' and TransportationType is 'Private Car'. */
   CarNo?: string;

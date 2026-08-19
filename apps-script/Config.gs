@@ -67,6 +67,7 @@ const CONFIG = {
     'CarNo',
     'CarLicense',
     'ReceiptTransferImage',
+    'HasFriendsForAccommodation',
     'RoomId',
     'CreatedAt',
     'UpdatedAt'

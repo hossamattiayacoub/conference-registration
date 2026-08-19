@@ -87,7 +87,8 @@ function createRegistration(data) {
     return createApiResponse(false, 'يوجد تسجيل بالفعل باستخدام رقم الموبايل ده', { id: existingId });
   }
 
-  const roomId = parseRoomId_(data.RoomId);
+  const wantsRoom = data.HasFriendsForAccommodation === 'نعم';
+  const roomId = wantsRoom ? parseRoomId_(data.RoomId) : null;
   if (roomId !== null) {
     const roomValidation = validateRoomCapacity_(roomId, null);
     if (!roomValidation.valid) {
@@ -127,6 +128,7 @@ function createRegistration(data) {
     // no longer collected by the UI - left empty for new rows, and carried
     // forward untouched for updates (see updateRegistration).
     AccommodationFamilyMemberId: '',
+    HasFriendsForAccommodation: data.HasFriendsForAccommodation,
     RoomId: roomId === null ? '' : roomId,
     CarNo: isCarScenario ? String(data.CarNo || '').trim() : '',
     CarLicense: '',
@@ -198,7 +200,8 @@ function updateRegistration(data) {
   const existingRecord = rowToRegistration_(target.row, target.headerMap);
   const isCarScenario = isCarScenario_(data.AttendanceDays, data.TransportationType);
 
-  const roomId = parseRoomId_(data.RoomId);
+  const wantsRoom = data.HasFriendsForAccommodation === 'نعم';
+  const roomId = wantsRoom ? parseRoomId_(data.RoomId) : null;
   if (roomId !== null) {
     // Exclude this registration's own current room assignment from the
     // occupancy count, so keeping (or re-picking) the same room never fails
@@ -240,6 +243,7 @@ function updateRegistration(data) {
     // Old family-member accommodation column: no longer collected by the UI,
     // so it is carried forward untouched rather than overwritten with ''.
     AccommodationFamilyMemberId: existingRecord.AccommodationFamilyMemberId || '',
+    HasFriendsForAccommodation: data.HasFriendsForAccommodation,
     RoomId: roomId === null ? '' : roomId,
     CarNo: isCarScenario ? String(data.CarNo || '').trim() : '',
     CarLicense: isCarScenario ? existingRecord.CarLicense || '' : '',

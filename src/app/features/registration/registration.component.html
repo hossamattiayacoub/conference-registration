@@ -188,10 +188,22 @@
         </div>
       </section>
 
-      <!-- SECTION 8B: Accommodation (room selection) -->
+      <!-- SECTION 8B: Accommodation -->
       <section class="section">
-        <h2 class="section__title"><span class="section__badge">07</span> التسكين: اختار الغرفه</h2>
+        <h2 class="section__title"><span class="section__badge">07</span> التسكين</h2>
+
         <div class="field">
+          <label>في التسكين هل لديك اصدقاء (مجموعه) بالمؤتمر ترغب بالسكن معهم في نفس الغرفه؟ مع العلم ان اصغر غرفه 3 افراد و اكبر غرفه 5 افراد <span class="required">*</span></label>
+          <div class="radio-row">
+            <label class="radio-card" *ngFor="let option of hasFriendsForAccommodationOptions">
+              <input type="radio" formControlName="hasFriendsForAccommodation" [value]="option.value">
+              <span>{{ option.label }}</span>
+            </label>
+          </div>
+          <small class="error" *ngIf="errorFor('hasFriendsForAccommodation')">{{ errorFor('hasFriendsForAccommodation') }}</small>
+        </div>
+
+        <div class="conditional-field field" *ngIf="showRoomDropdown">
           <label for="roomId">التسكين: اختار الغرفه <span class="required">*</span></label>
           <select id="roomId" formControlName="roomId" [class.invalid]="errorFor('roomId')">
             <option [ngValue]="null">-- اختر غرفة --</option>
@@ -216,6 +228,10 @@
             <div class="room-details__row"><span>الحاجزين:</span> {{ formatOccupantNames(room) }}</div>
             <div class="room-details__row" *ngIf="room.description">{{ room.description }}</div>
           </div>
+        </div>
+
+        <div class="info-note conditional-field" *ngIf="showNoRoomMessage">
+          برجاء العلم انه سيتم التسكين من قبل المسؤلين ولا يوجد تغيير.
         </div>
       </section>
 
