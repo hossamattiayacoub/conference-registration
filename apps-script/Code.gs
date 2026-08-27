@@ -87,7 +87,8 @@ function createRegistration(data) {
     return createApiResponse(false, 'يوجد تسجيل بالفعل باستخدام رقم الموبايل ده', { id: existingId });
   }
 
-  const wantsRoom = data.HasFriendsForAccommodation === 'نعم';
+  const showAccommodation = data.MarriedAndYourSpousebookInConference === 'لا';
+  const wantsRoom = showAccommodation && data.HasFriendsForAccommodation === 'نعم';
   const roomId = wantsRoom ? parseRoomId_(data.RoomId) : null;
   if (roomId !== null) {
     const roomValidation = validateRoomCapacity_(roomId, null);
@@ -115,6 +116,7 @@ function createRegistration(data) {
     MarriedAndYourSpousebookInConference: isMarriedFieldVisible_(data.AttendanceDays)
       ? data.MarriedAndYourSpousebookInConference
       : '',
+    WifeName: data.MarriedAndYourSpousebookInConference === 'نعم' ? String(data.WifeName || '').trim() : '',
     ConferenceBooking: '', // حجز المؤتمر removed from the UI; column kept only for backward compatibility.
     // PaymentMethod/PaymentAmount/ReceiptTransferImage (طريقة الدفع, مبلغ
     // الدفع, يرجى رفع صورة التحويل) removed from the UI - left empty for new
@@ -128,7 +130,7 @@ function createRegistration(data) {
     // no longer collected by the UI - left empty for new rows, and carried
     // forward untouched for updates (see updateRegistration).
     AccommodationFamilyMemberId: '',
-    HasFriendsForAccommodation: data.HasFriendsForAccommodation,
+    HasFriendsForAccommodation: showAccommodation ? data.HasFriendsForAccommodation : '',
     RoomId: roomId === null ? '' : roomId,
     CarNo: isCarScenario ? String(data.CarNo || '').trim() : '',
     CarLicense: '',
@@ -200,7 +202,8 @@ function updateRegistration(data) {
   const existingRecord = rowToRegistration_(target.row, target.headerMap);
   const isCarScenario = isCarScenario_(data.AttendanceDays, data.TransportationType);
 
-  const wantsRoom = data.HasFriendsForAccommodation === 'نعم';
+  const showAccommodation = data.MarriedAndYourSpousebookInConference === 'لا';
+  const wantsRoom = showAccommodation && data.HasFriendsForAccommodation === 'نعم';
   const roomId = wantsRoom ? parseRoomId_(data.RoomId) : null;
   if (roomId !== null) {
     // Exclude this registration's own current room assignment from the
@@ -229,6 +232,7 @@ function updateRegistration(data) {
     MarriedAndYourSpousebookInConference: isMarriedFieldVisible_(data.AttendanceDays)
       ? data.MarriedAndYourSpousebookInConference
       : '',
+    WifeName: data.MarriedAndYourSpousebookInConference === 'نعم' ? String(data.WifeName || '').trim() : '',
     ConferenceBooking: '', // حجز المؤتمر removed from the UI; column kept only for backward compatibility.
     // PaymentMethod/PaymentAmount/ReceiptTransferImage (طريقة الدفع, مبلغ
     // الدفع, يرجى رفع صورة التحويل) removed from the UI: no longer collected,
@@ -243,7 +247,7 @@ function updateRegistration(data) {
     // Old family-member accommodation column: no longer collected by the UI,
     // so it is carried forward untouched rather than overwritten with ''.
     AccommodationFamilyMemberId: existingRecord.AccommodationFamilyMemberId || '',
-    HasFriendsForAccommodation: data.HasFriendsForAccommodation,
+    HasFriendsForAccommodation: showAccommodation ? data.HasFriendsForAccommodation : '',
     RoomId: roomId === null ? '' : roomId,
     CarNo: isCarScenario ? String(data.CarNo || '').trim() : '',
     CarLicense: isCarScenario ? existingRecord.CarLicense || '' : '',

@@ -121,6 +121,54 @@
             </label>
           </div>
           <small class="error" *ngIf="errorFor('marriedAndYourSpousebookInConference')">{{ errorFor('marriedAndYourSpousebookInConference') }}</small>
+
+          <div class="field field--spaced" *ngIf="showWifeNameField">
+            <label for="wifeName">ادخل اسم الزوجه <span class="required">*</span></label>
+            <input id="wifeName" type="text" formControlName="wifeName" placeholder="اسم الزوجه" [class.invalid]="errorFor('wifeName')">
+            <small class="error" *ngIf="errorFor('wifeName')">{{ errorFor('wifeName') }}</small>
+          </div>
+
+          <div class="field field--spaced" *ngIf="showAccommodationSection">
+            <label>في التسكين هل لديك اصدقاء (مجموعه) بالمؤتمر ترغب بالسكن معهم في نفس الغرفه؟ مع العلم ان اصغر غرفه 3 افراد و اكبر غرفه 5 افراد <span class="required">*</span></label>
+            <div class="radio-row">
+              <label class="radio-card" *ngFor="let option of hasFriendsForAccommodationOptions">
+                <input type="radio" formControlName="hasFriendsForAccommodation" [value]="option.value">
+                <span>{{ option.label }}</span>
+              </label>
+            </div>
+            <small class="error" *ngIf="errorFor('hasFriendsForAccommodation')">{{ errorFor('hasFriendsForAccommodation') }}</small>
+
+            <div class="field field--spaced" *ngIf="showRoomDropdown">
+              <label for="roomId">التسكين: اختار الغرفه <span class="required">*</span></label>
+              <select id="roomId" formControlName="roomId" [class.invalid]="errorFor('roomId')">
+                <option [ngValue]="null">-- اختر غرفة --</option>
+                <option
+                  *ngFor="let room of filteredRooms"
+                  [ngValue]="room.id"
+                  [attr.disabled]="room.isFull ? true : null"
+                >{{ formatRoomOptionLabel(room) }}</option>
+              </select>
+              <small class="error" *ngIf="errorFor('roomId')">{{ errorFor('roomId') }}</small>
+              <small class="hint" *ngIf="isLoadingRooms()">جاري تحميل الغرف...</small>
+              <div class="field__inline-error" *ngIf="roomsError() && !isLoadingRooms()">
+                <small class="error">{{ roomsError() }}</small>
+                <button type="button" class="btn btn--ghost btn--sm" (click)="loadRooms()">إعادة المحاولة</button>
+              </div>
+
+              <div class="room-details" *ngIf="selectedRoom as room">
+                <div class="room-details__row"><span>الغرفة:</span> {{ room.name }}</div>
+                <div class="room-details__row"><span>السعة:</span> {{ room.capacity }}</div>
+                <div class="room-details__row"><span>الموجودين:</span> {{ room.currentOccupancy }}</div>
+                <div class="room-details__row"><span>الأماكن المتاحة:</span> {{ room.availableSpaces }}</div>
+                <div class="room-details__row"><span>الحاجزين:</span> {{ formatOccupantNames(room) }}</div>
+                <div class="room-details__row" *ngIf="room.description">{{ room.description }}</div>
+              </div>
+            </div>
+
+            <div class="info-note field--spaced" *ngIf="showNoRoomMessage">
+              برجاء العلم انه سيتم التسكين من قبل المسؤلين ولا يوجد تغيير.
+            </div>
+          </div>
         </div>
 
         <div class="conditional-field" *ngIf="showAttendanceDayField">
@@ -188,56 +236,9 @@
         </div>
       </section>
 
-      <!-- SECTION 8B: Accommodation -->
-      <section class="section">
-        <h2 class="section__title"><span class="section__badge">07</span> التسكين</h2>
-
-        <div class="field">
-          <label>في التسكين هل لديك اصدقاء (مجموعه) بالمؤتمر ترغب بالسكن معهم في نفس الغرفه؟ مع العلم ان اصغر غرفه 3 افراد و اكبر غرفه 5 افراد <span class="required">*</span></label>
-          <div class="radio-row">
-            <label class="radio-card" *ngFor="let option of hasFriendsForAccommodationOptions">
-              <input type="radio" formControlName="hasFriendsForAccommodation" [value]="option.value">
-              <span>{{ option.label }}</span>
-            </label>
-          </div>
-          <small class="error" *ngIf="errorFor('hasFriendsForAccommodation')">{{ errorFor('hasFriendsForAccommodation') }}</small>
-        </div>
-
-        <div class="conditional-field field" *ngIf="showRoomDropdown">
-          <label for="roomId">التسكين: اختار الغرفه <span class="required">*</span></label>
-          <select id="roomId" formControlName="roomId" [class.invalid]="errorFor('roomId')">
-            <option [ngValue]="null">-- اختر غرفة --</option>
-            <option
-              *ngFor="let room of filteredRooms"
-              [ngValue]="room.id"
-              [attr.disabled]="room.isFull ? true : null"
-            >{{ formatRoomOptionLabel(room) }}</option>
-          </select>
-          <small class="error" *ngIf="errorFor('roomId')">{{ errorFor('roomId') }}</small>
-          <small class="hint" *ngIf="isLoadingRooms()">جاري تحميل الغرف...</small>
-          <div class="field__inline-error" *ngIf="roomsError() && !isLoadingRooms()">
-            <small class="error">{{ roomsError() }}</small>
-            <button type="button" class="btn btn--ghost btn--sm" (click)="loadRooms()">إعادة المحاولة</button>
-          </div>
-
-          <div class="room-details" *ngIf="selectedRoom as room">
-            <div class="room-details__row"><span>الغرفة:</span> {{ room.name }}</div>
-            <div class="room-details__row"><span>السعة:</span> {{ room.capacity }}</div>
-            <div class="room-details__row"><span>الموجودين:</span> {{ room.currentOccupancy }}</div>
-            <div class="room-details__row"><span>الأماكن المتاحة:</span> {{ room.availableSpaces }}</div>
-            <div class="room-details__row"><span>الحاجزين:</span> {{ formatOccupantNames(room) }}</div>
-            <div class="room-details__row" *ngIf="room.description">{{ room.description }}</div>
-          </div>
-        </div>
-
-        <div class="info-note conditional-field" *ngIf="showNoRoomMessage">
-          برجاء العلم انه سيتم التسكين من قبل المسؤلين ولا يوجد تغيير.
-        </div>
-      </section>
-
       <!-- SECTION 9: ID Images -->
       <section class="section">
-        <h2 class="section__title"><span class="section__badge">08</span> صور البطاقة الشخصية</h2>
+        <h2 class="section__title"><span class="section__badge">07</span> صور البطاقة الشخصية</h2>
         <div class="grid grid--2">
           <div class="upload-box">
             <span class="upload-box__label">صورة البطاقة الأمامية <span class="required">*</span></span>
@@ -281,7 +282,7 @@
 
       <!-- SECTION 10: Personal photo -->
       <section class="section">
-        <h2 class="section__title"><span class="section__badge">09</span> الصورة الشخصية</h2>
+        <h2 class="section__title"><span class="section__badge">08</span> الصورة الشخصية</h2>
         <div class="personal-photo">
           <div class="personal-photo__circle">
             <img *ngIf="previews.personalPhoto" [src]="previews.personalPhoto" alt="معاينة الصورة الشخصية">
@@ -297,7 +298,7 @@
 
       <!-- SECTION 11: Notes -->
       <section class="section">
-        <h2 class="section__title"><span class="section__badge">10</span> ملاحظات</h2>
+        <h2 class="section__title"><span class="section__badge">09</span> ملاحظات</h2>
         <div class="field">
           <textarea formControlName="notes" rows="4" placeholder="أي ملاحظات إضافية (اختياري)"></textarea>
         </div>

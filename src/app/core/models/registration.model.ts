@@ -95,6 +95,8 @@ export interface Registration {
   TransportationType?: string;
   AttendanceDay?: string;
   MarriedAndYourSpousebookInConference?: string;
+  /** "ادخل اسم الزوجه" - required only when MarriedAndYourSpousebookInConference === 'نعم'. */
+  WifeName?: string;
   /** @deprecated Field removed from the UI; kept optional only so old sheet rows still parse without error. */
   ConferenceBooking?: string;
   /** @deprecated Field removed from the UI (طريقة الدفع); kept optional only so old sheet rows still parse without error. */

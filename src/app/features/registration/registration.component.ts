@@ -97,6 +97,7 @@ export class RegistrationComponent {
     transportationType: this.fb.control(''),
     attendanceDay: this.fb.control(''),
     marriedAndYourSpousebookInConference: this.fb.control(''),
+    wifeName: this.fb.control(''),
     carNo: this.fb.control(''),
     carLicense: this.fb.control<File | string | null>(null),
 
@@ -125,6 +126,10 @@ export class RegistrationComponent {
     this.form
       .get('hasFriendsForAccommodation')!
       .valueChanges.subscribe(() => this.updateRoomFieldValidators());
+
+    this.form
+      .get('marriedAndYourSpousebookInConference')!
+      .valueChanges.subscribe(() => this.updateMarriedSectionValidators());
 
     this.loadRooms();
     this.loadServantOptions();
@@ -179,6 +184,10 @@ export class RegistrationComponent {
     married.updateValueAndValidity({ emitEvent: false });
     transportationType.updateValueAndValidity({ emitEvent: false });
     attendanceDay.updateValueAndValidity({ emitEvent: false });
+
+    // married.setValue() above uses emitEvent:false, so its own valueChanges
+    // subscription never fires - resync WifeName/accommodation gating here instead.
+    this.updateMarriedSectionValidators(clearValues);
   }
 
   get showMarriedField(): boolean {
@@ -242,14 +251,71 @@ export class RegistrationComponent {
       });
   }
 
-  /** True when the person wants to room with friends - shows/requires RoomId. */
+  /** "ادخل اسم الزوجه" - shown/required only when married === 'نعم'. */
+  get showWifeNameField(): boolean {
+    return this.form.get('marriedAndYourSpousebookInConference')!.value === 'نعم';
+  }
+
+  /** The existing accommodation section (friends question + room dropdown) is now only shown when married === 'لا'. */
+  get showAccommodationSection(): boolean {
+    return this.form.get('marriedAndYourSpousebookInConference')!.value === 'لا';
+  }
+
+  /** True when the person wants to room with friends - shows/requires RoomId. Also requires the accommodation section itself to be visible. */
   get showRoomDropdown(): boolean {
-    return this.form.get('hasFriendsForAccommodation')!.value === 'نعم';
+    return this.showAccommodationSection && this.form.get('hasFriendsForAccommodation')!.value === 'نعم';
   }
 
   /** True when staff will assign a room later - shows the informational note instead of the dropdown. */
   get showNoRoomMessage(): boolean {
-    return this.form.get('hasFriendsForAccommodation')!.value === 'لا';
+    return this.showAccommodationSection && this.form.get('hasFriendsForAccommodation')!.value === 'لا';
+  }
+
+  /** Pure setter: applies (or removes) the WifeName validator without touching its value. */
+  private setWifeNameValidators(isRequired: boolean): void {
+    const wifeName = this.form.get('wifeName')!;
+    if (isRequired) {
+      wifeName.setValidators([Validators.required]);
+    } else {
+      wifeName.clearValidators();
+    }
+    wifeName.updateValueAndValidity({ emitEvent: false });
+  }
+
+  /** Pure setter: applies (or removes) the HasFriendsForAccommodation validator without touching its value. */
+  private setHasFriendsValidators(isRequired: boolean): void {
+    const hasFriends = this.form.get('hasFriendsForAccommodation')!;
+    if (isRequired) {
+      hasFriends.setValidators([Validators.required]);
+    } else {
+      hasFriends.clearValidators();
+    }
+    hasFriends.updateValueAndValidity({ emitEvent: false });
+  }
+
+  /**
+   * Re-evaluates which sub-section - WifeName vs the accommodation section -
+   * should be shown/required based on the married question's current value,
+   * clearing whichever one is now hidden so a stale value is never
+   * submitted. Also resyncs RoomId via updateRoomFieldValidators(), since
+   * showRoomDropdown now depends on showAccommodationSection too.
+   */
+  private updateMarriedSectionValidators(clearValues = true): void {
+    const showWife = this.showWifeNameField;
+    const showAccommodation = this.showAccommodationSection;
+
+    if (clearValues) {
+      if (!showWife) {
+        this.form.get('wifeName')!.setValue('', { emitEvent: false });
+      }
+      if (!showAccommodation) {
+        this.form.get('hasFriendsForAccommodation')!.setValue('', { emitEvent: false });
+      }
+    }
+
+    this.setWifeNameValidators(showWife);
+    this.setHasFriendsValidators(showAccommodation);
+    this.updateRoomFieldValidators();
   }
 
   /** Pure setter: applies (or removes) the RoomId validator without touching its value. */
@@ -364,6 +430,7 @@ export class RegistrationComponent {
       marriedAndYourSpousebookInConference: {
         required: 'هل أنت متزوج وزوجك / زوجتك حجزت معك المؤتمر؟ مطلوب'
       },
+      wifeName: { required: 'اسم الزوجه مطلوب' },
       carNo: { required: 'رقم السيارة مطلوب', blank: 'رقم السيارة مطلوب' },
       carLicense: {
         required: 'صورة الرخصة مطلوبة',
@@ -510,7 +577,13 @@ export class RegistrationComponent {
       registration.AttendanceDays === 'يوم واحد بدون مواصلات' && registration.TransportationType === 'Private Car';
     this.setCarFieldValidators(isCarRequired);
 
-    const isRoomRequired = registration.HasFriendsForAccommodation === 'نعم';
+    const isWifeNameRequired = registration.MarriedAndYourSpousebookInConference === 'نعم';
+    this.setWifeNameValidators(isWifeNameRequired);
+
+    const isAccommodationVisible = registration.MarriedAndYourSpousebookInConference === 'لا';
+    this.setHasFriendsValidators(isAccommodationVisible);
+
+    const isRoomRequired = isAccommodationVisible && registration.HasFriendsForAccommodation === 'نعم';
     this.setRoomFieldValidators(isRoomRequired);
 
     this.form.patchValue({
@@ -526,6 +599,7 @@ export class RegistrationComponent {
       transportationType: registration.TransportationType ?? '',
       attendanceDay: registration.AttendanceDay ?? '',
       marriedAndYourSpousebookInConference: registration.MarriedAndYourSpousebookInConference ?? '',
+      wifeName: isWifeNameRequired ? registration.WifeName ?? '' : '',
       carNo: registration.CarNo ?? '',
       carLicense: registration.CarLicense ?? null,
       servantName: registration.ServantName,
@@ -534,7 +608,7 @@ export class RegistrationComponent {
       personalPhoto: registration.PersonalPhotoFileUrl ?? null,
       notes: registration.Notes ?? '',
       nationalId: registration.NationalId,
-      hasFriendsForAccommodation: registration.HasFriendsForAccommodation ?? '',
+      hasFriendsForAccommodation: isAccommodationVisible ? registration.HasFriendsForAccommodation ?? '' : '',
       roomId: isRoomRequired ? registration.RoomId ?? null : null
     });
 
@@ -629,12 +703,17 @@ export class RegistrationComponent {
         raw.attendanceDays === 'الجمعة والسبت بالمواصلات' || raw.attendanceDays === 'الجمعة والسبت بدون مواصلات'
           ? raw.marriedAndYourSpousebookInConference ?? ''
           : '',
+      WifeName: raw.marriedAndYourSpousebookInConference === 'نعم' ? (raw.wifeName ?? '').trim() : '',
       CarNo: isCarScenario ? (raw.carNo ?? '').trim() : '',
       ServantName: raw.servantName!,
       Notes: raw.notes ?? '',
       NationalId: raw.nationalId!,
-      HasFriendsForAccommodation: raw.hasFriendsForAccommodation!,
-      RoomId: raw.hasFriendsForAccommodation === 'نعم' ? raw.roomId ?? null : null,
+      HasFriendsForAccommodation:
+        raw.marriedAndYourSpousebookInConference === 'لا' ? raw.hasFriendsForAccommodation ?? '' : '',
+      RoomId:
+        raw.marriedAndYourSpousebookInConference === 'لا' && raw.hasFriendsForAccommodation === 'نعم'
+          ? raw.roomId ?? null
+          : null,
       ...this.existingImageRefs
     };
 
@@ -668,6 +747,7 @@ export class RegistrationComponent {
       transportationType: '',
       attendanceDay: '',
       marriedAndYourSpousebookInConference: '',
+      wifeName: '',
       carNo: '',
       carLicense: null,
       servantName: '',

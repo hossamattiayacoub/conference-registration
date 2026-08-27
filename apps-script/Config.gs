@@ -63,6 +63,7 @@ const CONFIG = {
     'TransportationType',
     'AttendanceDay',
     'MarriedAndYourSpousebookInConference',
+    'WifeName',
     'AccommodationFamilyMemberId',
     'CarNo',
     'CarLicense',

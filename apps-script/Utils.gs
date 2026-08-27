@@ -237,6 +237,13 @@ function validateRegistration(data, isUpdate) {
     return { valid: false, message: 'هل أنت متزوج وزوجك / زوجتك حجزت معك المؤتمر؟ مطلوب' };
   }
 
+  // ادخل اسم الزوجه - shown/required only when the married question is
+  // answered "نعم". When it's unanswered (attendance option that hides the
+  // married question entirely) or "لا", WifeName is not required.
+  if (data.MarriedAndYourSpousebookInConference === 'نعم' && (!data.WifeName || String(data.WifeName).trim() === '')) {
+    return { valid: false, message: 'اسم الزوجه مطلوب' };
+  }
+
   // CarNo/CarLicense only apply to "يوم واحد بدون مواصلات" + "Private Car".
   const isCarScenario = data.AttendanceDays === 'يوم واحد بدون مواصلات' && data.TransportationType === 'Private Car';
   if (isCarScenario) {
@@ -250,18 +257,25 @@ function validateRegistration(data, isUpdate) {
     }
   }
 
-  // في التسكين هل لديك اصدقاء... - required, gates whether RoomId is required.
-  const hasFriendsValues = ['نعم', 'لا'];
-  if (hasFriendsValues.indexOf(data.HasFriendsForAccommodation) === -1) {
-    return { valid: false, message: 'اختيار التسكين مع الأصدقاء مطلوب' };
-  }
+  // التسكين (friends/group accommodation question + room dropdown) is shown
+  // - and therefore required - only when the married question was answered
+  // "لا". When married is "نعم" (WifeName shown instead) or unanswered
+  // (married question hidden for this AttendanceDays option), the
+  // accommodation section is never displayed, so nothing here is required
+  // and RoomId must stay empty.
+  if (data.MarriedAndYourSpousebookInConference === 'لا') {
+    const hasFriendsValues = ['نعم', 'لا'];
+    if (hasFriendsValues.indexOf(data.HasFriendsForAccommodation) === -1) {
+      return { valid: false, message: 'اختيار التسكين مع الأصدقاء مطلوب' };
+    }
 
-  // التسكين: اختار الغرفه - RoomId is required only when the person wants to
-  // room with friends; otherwise staff assign a room later and RoomId must
-  // stay empty. parseRoomId_ (Code.gs) returns null for empty/undefined/
-  // non-numeric values, so this single check also covers "invalid" RoomId.
-  if (data.HasFriendsForAccommodation === 'نعم' && parseRoomId_(data.RoomId) === null) {
-    return { valid: false, message: 'التسكين مطلوب' };
+    // التسكين: اختار الغرفه - RoomId is required only when the person wants to
+    // room with friends; otherwise staff assign a room later and RoomId must
+    // stay empty. parseRoomId_ (Code.gs) returns null for empty/undefined/
+    // non-numeric values, so this single check also covers "invalid" RoomId.
+    if (data.HasFriendsForAccommodation === 'نعم' && parseRoomId_(data.RoomId) === null) {
+      return { valid: false, message: 'التسكين مطلوب' };
+    }
   }
 
   // On create, the three identity images must be present (either a new

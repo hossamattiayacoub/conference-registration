@@ -119,6 +119,10 @@
   flex-direction: column;
   gap: 6px;
 
+  &--spaced {
+    margin-top: 14px;
+  }
+
   label {
     font-size: 13.5px;
     font-weight: 600;
