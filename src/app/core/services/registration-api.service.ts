@@ -32,43 +32,15 @@ export class RegistrationApiService {
     );
   }
 
-  /** Updates an existing registration row (Id must be present in data). */
-  updateRegistration(data: RegistrationSubmitPayload): Observable<ApiResponse<Registration>> {
-    return this.http.post<ApiResponse<Registration>>(
-      this.apiUrl,
-      JSON.stringify({ action: 'update', data }),
-      this.postOptions
-    );
-  }
-
-  /** Looks up a registration using the mobile number. */
-  getRegistrationByMobile(mobile: string): Observable<ApiResponse<Registration>> {
-    const params = new HttpParams().set('action', 'getByMobile').set('mobile', mobile);
-    return this.http.get<ApiResponse<Registration>>(this.apiUrl, { params });
-  }
-
-  /** Looks up a registration using its Id. */
-  getRegistrationById(id: string): Observable<ApiResponse<Registration>> {
-    const params = new HttpParams().set('action', 'getById').set('id', id);
-    return this.http.get<ApiResponse<Registration>>(this.apiUrl, { params });
-  }
-
   /** Ensures the sheet exists and its header row is set up. */
   initializeDatabase(): Observable<ApiResponse<null>> {
     const params = new HttpParams().set('action', 'initialize');
     return this.http.get<ApiResponse<null>>(this.apiUrl, { params });
   }
 
-  /**
-   * Loads rooms with computed occupancy/availability for the "التسكين: اختار الغرفه" dropdown.
-   * Pass excludeRegistrationId while editing a registration so that registration's own
-   * current room assignment doesn't count against that room's capacity.
-   */
-  getRooms(excludeRegistrationId?: string | null): Observable<ApiResponse<Room[]>> {
-    let params = new HttpParams().set('action', 'getRooms');
-    if (excludeRegistrationId) {
-      params = params.set('excludeId', excludeRegistrationId);
-    }
+  /** Loads rooms with computed occupancy/availability for the "التسكين: اختار الغرفه" dropdown. */
+  getRooms(): Observable<ApiResponse<Room[]>> {
+    const params = new HttpParams().set('action', 'getRooms');
     return this.http.get<ApiResponse<Room[]>>(this.apiUrl, { params });
   }
 

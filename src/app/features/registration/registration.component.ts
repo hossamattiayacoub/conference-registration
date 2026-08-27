@@ -58,11 +58,7 @@ export class RegistrationComponent {
   readonly servantOptionsError = signal<string | null>(null);
 
   readonly isSubmitting = signal(false);
-  readonly isSearching = signal(false);
-  readonly isLoadingRecord = signal(false);
   readonly alert = signal<AlertState | null>(null);
-  readonly duplicateId = signal<string | null>(null);
-  readonly editingId = signal<string | null>(null);
 
   // Room dropdown ("التسكين: اختار الغرفه") - loaded from the Rooms sheet
   // via the "getRooms" API action, which also computes occupancy server-side.
@@ -77,8 +73,8 @@ export class RegistrationComponent {
     carLicense: null
   };
 
-  // Preserves existing Drive file id/url pairs while editing, so we don't
-  // lose them when the person does not choose a replacement image.
+  // Always empty now that editing is removed (registration is create-only).
+  // Kept as a stable field so buildPayload()'s spread doesn't need special-casing.
   private existingImageRefs: Partial<Registration> = {};
 
   readonly form = this.fb.group({
@@ -146,22 +142,15 @@ export class RegistrationComponent {
    * | الجمعة والسبت بالمواصلات            | Show + Required  | Hidden              | Hidden            |
    * | الجمعة والسبت بدون مواصلات          | Show + Required  | Show + Required     | Hidden            |
    * | يوم واحد بدون مواصلات               | Hidden           | Show + Required     | Show + Required   |
-   *
-   * clearValues defaults to true (a fresh user selection should always wipe
-   * the previous conditional answers). It is passed as false only while an
-   * existing registration is being loaded into the form, right before the
-   * saved values are patched in.
    */
-  private updateAttendanceConditionalValidators(attendanceDays: string | null, clearValues = true): void {
+  private updateAttendanceConditionalValidators(attendanceDays: string | null): void {
     const transportationType = this.form.get('transportationType')!;
     const attendanceDay = this.form.get('attendanceDay')!;
     const married = this.form.get('marriedAndYourSpousebookInConference')!;
 
-    if (clearValues) {
-      transportationType.setValue('', { emitEvent: false });
-      attendanceDay.setValue('', { emitEvent: false });
-      married.setValue('', { emitEvent: false });
-    }
+    transportationType.setValue('', { emitEvent: false });
+    attendanceDay.setValue('', { emitEvent: false });
+    married.setValue('', { emitEvent: false });
 
     if (attendanceDays === 'الجمعة والسبت بالمواصلات') {
       married.setValidators([Validators.required]);
@@ -187,7 +176,7 @@ export class RegistrationComponent {
 
     // married.setValue() above uses emitEvent:false, so its own valueChanges
     // subscription never fires - resync WifeName/accommodation gating here instead.
-    this.updateMarriedSectionValidators(clearValues);
+    this.updateMarriedSectionValidators();
   }
 
   get showMarriedField(): boolean {
@@ -300,17 +289,15 @@ export class RegistrationComponent {
    * submitted. Also resyncs RoomId via updateRoomFieldValidators(), since
    * showRoomDropdown now depends on showAccommodationSection too.
    */
-  private updateMarriedSectionValidators(clearValues = true): void {
+  private updateMarriedSectionValidators(): void {
     const showWife = this.showWifeNameField;
     const showAccommodation = this.showAccommodationSection;
 
-    if (clearValues) {
-      if (!showWife) {
-        this.form.get('wifeName')!.setValue('', { emitEvent: false });
-      }
-      if (!showAccommodation) {
-        this.form.get('hasFriendsForAccommodation')!.setValue('', { emitEvent: false });
-      }
+    if (!showWife) {
+      this.form.get('wifeName')!.setValue('', { emitEvent: false });
+    }
+    if (!showAccommodation) {
+      this.form.get('hasFriendsForAccommodation')!.setValue('', { emitEvent: false });
     }
 
     this.setWifeNameValidators(showWife);
@@ -337,12 +324,12 @@ export class RegistrationComponent {
     this.setRoomFieldValidators(this.showRoomDropdown);
   }
 
-  /** Loads rooms with availability for the accommodation dropdown, excluding the registration currently being edited (if any) from occupancy. */
+  /** Loads rooms with availability for the accommodation dropdown. */
   loadRooms(): void {
     this.isLoadingRooms.set(true);
     this.roomsError.set(null);
     this.api
-      .getRooms(this.editingId())
+      .getRooms()
       .pipe(finalize(() => this.isLoadingRooms.set(false)))
       .subscribe({
         next: (response) => {
@@ -503,128 +490,8 @@ export class RegistrationComponent {
     }
   }
 
-  /** Looks up a registration by the mobile number currently typed in. */
-  searchByMobile(): void {
-    const mobileControl = this.form.get('mobile')!;
-    mobileControl.markAsTouched();
-    if (mobileControl.invalid) {
-      this.alert.set({ type: 'error', message: 'أدخل رقم موبايل صحيح أولاً' });
-      return;
-    }
-
-    this.isSearching.set(true);
-    this.alert.set(null);
-    this.api
-      .getRegistrationByMobile(mobileControl.value as string)
-      .pipe(finalize(() => this.isSearching.set(false)))
-      .subscribe({
-        next: (response) => {
-          if (response.success && response.data) {
-            this.loadRegistrationIntoForm(response.data);
-            this.alert.set({ type: 'info', message: 'تم العثور على تسجيل بهذا الرقم وتحميل بياناته للتعديل' });
-          } else {
-            this.alert.set({ type: 'info', message: 'لا يوجد تسجيل سابق بهذا الرقم، يمكنك المتابعة في التسجيل' });
-          }
-        },
-        error: () => {
-          this.alert.set({ type: 'error', message: 'تعذر الاتصال بالخادم أثناء البحث، حاول مرة أخرى' });
-        }
-      });
-  }
-
-  /** Loads a duplicate registration flagged by the backend on create. */
-  loadDuplicateRegistration(): void {
-    const id = this.duplicateId();
-    if (!id) {
-      return;
-    }
-    this.isLoadingRecord.set(true);
-    this.api
-      .getRegistrationById(id)
-      .pipe(finalize(() => this.isLoadingRecord.set(false)))
-      .subscribe({
-        next: (response) => {
-          if (response.success && response.data) {
-            this.loadRegistrationIntoForm(response.data);
-            this.duplicateId.set(null);
-            this.alert.set({ type: 'info', message: 'تم تحميل التسجيل الحالي، يمكنك تعديل البيانات ثم الحفظ' });
-          }
-        },
-        error: () => {
-          this.alert.set({ type: 'error', message: 'تعذر تحميل التسجيل الحالي' });
-        }
-      });
-  }
-
-  private loadRegistrationIntoForm(registration: Registration): void {
-    this.editingId.set(registration.Id ?? null);
-    this.existingImageRefs = {
-      FrontIdFileId: registration.FrontIdFileId,
-      FrontIdFileUrl: registration.FrontIdFileUrl,
-      BackIdFileId: registration.BackIdFileId,
-      BackIdFileUrl: registration.BackIdFileUrl,
-      PersonalPhotoFileId: registration.PersonalPhotoFileId,
-      PersonalPhotoFileUrl: registration.PersonalPhotoFileUrl,
-      CarLicense: registration.CarLicense
-    };
-
-    // Apply the correct required/hidden state for the saved AttendanceDays
-    // value *before* patching in the saved TransportationType/AttendanceDay
-    // values, without clearing them (clearValues = false).
-    this.updateAttendanceConditionalValidators(registration.AttendanceDays, false);
-
-    const isCarRequired =
-      registration.AttendanceDays === 'يوم واحد بدون مواصلات' && registration.TransportationType === 'Private Car';
-    this.setCarFieldValidators(isCarRequired);
-
-    const isWifeNameRequired = registration.MarriedAndYourSpousebookInConference === 'نعم';
-    this.setWifeNameValidators(isWifeNameRequired);
-
-    const isAccommodationVisible = registration.MarriedAndYourSpousebookInConference === 'لا';
-    this.setHasFriendsValidators(isAccommodationVisible);
-
-    const isRoomRequired = isAccommodationVisible && registration.HasFriendsForAccommodation === 'نعم';
-    this.setRoomFieldValidators(isRoomRequired);
-
-    this.form.patchValue({
-      firstName: registration.FirstName,
-      secondName: registration.SecondName,
-      thirdName: registration.ThirdName,
-      fourthName: registration.FourthName,
-      mobile: registration.Mobile,
-      gender: registration.Gender,
-      job: registration.Job ?? '',
-      diocese: registration.Diocese,
-      attendanceDays: registration.AttendanceDays,
-      transportationType: registration.TransportationType ?? '',
-      attendanceDay: registration.AttendanceDay ?? '',
-      marriedAndYourSpousebookInConference: registration.MarriedAndYourSpousebookInConference ?? '',
-      wifeName: isWifeNameRequired ? registration.WifeName ?? '' : '',
-      carNo: registration.CarNo ?? '',
-      carLicense: registration.CarLicense ?? null,
-      servantName: registration.ServantName,
-      frontIdImage: registration.FrontIdFileUrl ?? null,
-      backIdImage: registration.BackIdFileUrl ?? null,
-      personalPhoto: registration.PersonalPhotoFileUrl ?? null,
-      notes: registration.Notes ?? '',
-      nationalId: registration.NationalId,
-      hasFriendsForAccommodation: isAccommodationVisible ? registration.HasFriendsForAccommodation ?? '' : '',
-      roomId: isRoomRequired ? registration.RoomId ?? null : null
-    });
-
-    // Re-load rooms now that editingId is set, so this registration's own
-    // current room assignment is excluded from the occupancy count.
-    this.loadRooms();
-
-    this.previews.frontIdImage = registration.FrontIdFileUrl ?? null;
-    this.previews.backIdImage = registration.BackIdFileUrl ?? null;
-    this.previews.personalPhoto = registration.PersonalPhotoFileUrl ?? null;
-    this.previews.carLicense = registration.CarLicense ?? null;
-  }
-
   async submit(): Promise<void> {
     this.alert.set(null);
-    this.duplicateId.set(null);
     this.form.markAllAsTouched();
 
     if (this.form.invalid) {
@@ -640,39 +507,31 @@ export class RegistrationComponent {
     this.isSubmitting.set(true);
     try {
       const payload = await this.buildPayload();
-      const editingId = this.editingId();
 
-      const request$ = editingId
-        ? this.api.updateRegistration({ ...payload, Id: editingId })
-        : this.api.createRegistration(payload);
-
-      request$.pipe(finalize(() => this.isSubmitting.set(false))).subscribe({
-        next: (response) => {
-          if (response.success && !editingId && response.data?.Id) {
-            // New registration created - hand off to the dedicated success
-            // page with the backend-generated Id (never a client-made one).
-            this.router.navigate(['/registration-success'], {
-              state: { registrationId: response.data.Id }
-            });
-          } else if (response.success) {
-            this.alert.set({
-              type: 'success',
-              message: editingId ? 'تم تحديث بيانات التسجيل بنجاح' : 'تم إرسال التسجيل بنجاح'
-            });
-            if (!editingId) {
+      this.api
+        .createRegistration(payload)
+        .pipe(finalize(() => this.isSubmitting.set(false)))
+        .subscribe({
+          next: (response) => {
+            if (response.success && response.data?.Id) {
+              // New registration created - hand off to the dedicated success
+              // page with the backend-generated Id (never a client-made one).
+              this.router.navigate(['/registration-success'], {
+                state: { registrationId: response.data.Id }
+              });
+            } else if (response.success) {
+              this.alert.set({ type: 'success', message: 'تم إرسال التسجيل بنجاح' });
               this.resetForm();
+            } else {
+              // Includes the existing server-side duplicate-mobile rejection -
+              // shown as a plain error, with no way to load/edit that record.
+              this.alert.set({ type: 'error', message: response.message || 'حدث خطأ أثناء الإرسال' });
             }
-          } else if (response.data && (response.data as unknown as { id?: string }).id) {
-            this.duplicateId.set((response.data as unknown as { id: string }).id);
-            this.alert.set({ type: 'error', message: 'يوجد تسجيل بالفعل باستخدام رقم الموبايل ده' });
-          } else {
-            this.alert.set({ type: 'error', message: response.message || 'حدث خطأ أثناء الإرسال' });
+          },
+          error: () => {
+            this.alert.set({ type: 'error', message: 'تعذر الاتصال بالخادم، يرجى المحاولة مرة أخرى' });
           }
-        },
-        error: () => {
-          this.alert.set({ type: 'error', message: 'تعذر الاتصال بالخادم، يرجى المحاولة مرة أخرى' });
-        }
-      });
+        });
     } catch {
       this.isSubmitting.set(false);
       this.alert.set({ type: 'error', message: 'تعذرت معالجة الصور المرفقة' });
@@ -764,9 +623,7 @@ export class RegistrationComponent {
     this.previews.personalPhoto = null;
     this.previews.carLicense = null;
     this.existingImageRefs = {};
-    this.editingId.set(null);
-    this.duplicateId.set(null);
-    this.loadRooms(); // Refresh availability now that no registration is excluded from occupancy.
+    this.loadRooms(); // Refresh room availability for the next new registration.
   }
 
   dismissAlert(): void {

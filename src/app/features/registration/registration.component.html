@@ -15,9 +15,6 @@
          [class.alert--info]="alert()?.type === 'info'"
          *ngIf="alert() as a">
       <span class="alert__text">{{ a.message }}</span>
-      <button type="button" class="alert__load" *ngIf="duplicateId()" (click)="loadDuplicateRegistration()" [disabled]="isLoadingRecord()">
-        {{ isLoadingRecord() ? 'جارِ التحميل...' : 'تحميل بيانات التسجيل الحالي' }}
-      </button>
       <button type="button" class="alert__dismiss" (click)="dismissAlert()" aria-label="إغلاق">×</button>
     </div>
 
@@ -54,16 +51,10 @@
       <section class="section">
         <h2 class="section__title"><span class="section__badge">02</span> بيانات التواصل</h2>
         <div class="grid grid--2">
-          <div class="field field--with-action">
+          <div class="field">
             <label for="mobile">رقم الموبايل <span class="required">*</span></label>
-            <div class="field__row">
-              <input id="mobile" type="tel" formControlName="mobile" placeholder="01xxxxxxxxx" [class.invalid]="errorFor('mobile')">
-              <button type="button" class="btn btn--ghost" (click)="searchByMobile()" [disabled]="isSearching()">
-                {{ isSearching() ? 'جارِ البحث...' : 'بحث' }}
-              </button>
-            </div>
+            <input id="mobile" type="tel" formControlName="mobile" placeholder="01xxxxxxxxx" [class.invalid]="errorFor('mobile')">
             <small class="error" *ngIf="errorFor('mobile')">{{ errorFor('mobile') }}</small>
-            <small class="hint">ابحث برقم الموبايل لتحميل تسجيل سابق وتعديله</small>
           </div>
           <div class="field">
             <label for="nationalId">الرقم القومي <span class="required">*</span></label>
