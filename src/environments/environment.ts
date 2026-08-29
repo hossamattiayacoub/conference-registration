@@ -2,5 +2,5 @@ export const environment = {
   production: false,
   // Paste the Google Apps Script Web App URL here after deployment.
   // Example: https://script.google.com/macros/s/AKfycb.../exec
-  appsScriptApiUrl: 'https://script.google.com/macros/s/AKfycbw1u9RzXAGd_zsa04slbzIZkgobEte6mXOCkNt4fixykRRouPsPocyZta2xgyzSw8QXHw/exec'
+  appsScriptApiUrl: 'https://script.google.com/macros/s/AKfycbxtcxO8S3Wvs1NDygC-B35UvyNirQYWiNsqOLk3mWdwHjEnW5yyR6R7bcljGJ96Ou-y/exec'
 };
