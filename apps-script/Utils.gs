@@ -213,12 +213,13 @@ function validateRegistration(data, isUpdate) {
   }
 
   // هل رقم الموبيل به واتس اب - required radio (نعم/لا). WhatsAppNumber is
-  // required only when the answer is نعم.
+  // required only when the answer is لا (the mobile number itself is NOT on
+  // WhatsApp, so a separate WhatsApp number must be provided).
   const hasWhatsAppValues = ['نعم', 'لا'];
   if (hasWhatsAppValues.indexOf(data.HasWhatsApp) === -1) {
     return { valid: false, message: 'هل رقم الموبيل به واتس اب؟ مطلوب' };
   }
-  if (data.HasWhatsApp === 'نعم') {
+  if (data.HasWhatsApp === 'لا') {
     if (!data.WhatsAppNumber || String(data.WhatsAppNumber).trim() === '') {
       return { valid: false, message: 'رقم الواتس اب مطلوب' };
     }

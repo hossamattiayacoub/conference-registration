@@ -246,9 +246,9 @@ export class RegistrationComponent {
       });
   }
 
-  /** "ادخل رقم الواتس اب" - shown/required only when the checkbox is checked. */
+  /** "ادخل رقم الواتس اب" - shown/required only when the mobile is NOT WhatsApp-enabled (لا), since then a separate number is needed. */
   get showWhatsAppField(): boolean {
-    return this.form.get('hasWhatsApp')!.value === 'نعم';
+    return this.form.get('hasWhatsApp')!.value === 'لا';
   }
 
   /** Pure setter: applies (or removes) the WhatsAppNumber validator without touching its value. */
@@ -585,7 +585,7 @@ export class RegistrationComponent {
       FullName: fullName,
       Mobile: raw.mobile!,
       HasWhatsApp: raw.hasWhatsApp!,
-      WhatsAppNumber: raw.hasWhatsApp === 'نعم' ? (raw.whatsAppNumber ?? '').trim() : '',
+      WhatsAppNumber: raw.hasWhatsApp === 'لا' ? (raw.whatsAppNumber ?? '').trim() : '',
       Gender: raw.gender as 'Male' | 'Female',
       Job: raw.job ?? '',
       Diocese: raw.diocese!,
