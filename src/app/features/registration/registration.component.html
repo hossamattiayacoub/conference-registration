@@ -50,33 +50,35 @@
       <!-- SECTION 2: Contact -->
       <section class="section">
         <h2 class="section__title"><span class="section__badge">02</span> بيانات التواصل</h2>
-        <div class="field">
-          <label for="mobile">رقم الموبايل <span class="required">*</span></label>
-          <input id="mobile" type="tel" formControlName="mobile" placeholder="01xxxxxxxxx" [class.invalid]="errorFor('mobile')">
-          <small class="error" *ngIf="errorFor('mobile')">{{ errorFor('mobile') }}</small>
-        </div>
-
-        <div class="field field--spaced">
-          <label>هل رقم الموبيل به واتس اب <span class="required">*</span></label>
-          <div class="radio-row">
-            <label class="radio-card" *ngFor="let option of hasWhatsAppOptions">
-              <input type="radio" formControlName="hasWhatsApp" [value]="option.value">
-              <span>{{ option.label }}</span>
-            </label>
+        <div class="grid grid--3">
+          <div class="field">
+            <label for="mobile">رقم الموبايل <span class="required">*</span></label>
+            <input id="mobile" type="tel" formControlName="mobile" placeholder="01xxxxxxxxx" [class.invalid]="errorFor('mobile')">
+            <small class="error" *ngIf="errorFor('mobile')">{{ errorFor('mobile') }}</small>
           </div>
-          <small class="error" *ngIf="errorFor('hasWhatsApp')">{{ errorFor('hasWhatsApp') }}</small>
+
+          <div class="field">
+            <label>هل رقم الموبيل به واتس اب <span class="required">*</span></label>
+            <div class="radio-row">
+              <label class="radio-card" *ngFor="let option of hasWhatsAppOptions">
+                <input type="radio" formControlName="hasWhatsApp" [value]="option.value">
+                <span>{{ option.label }}</span>
+              </label>
+            </div>
+            <small class="error" *ngIf="errorFor('hasWhatsApp')">{{ errorFor('hasWhatsApp') }}</small>
+          </div>
+
+          <div class="field">
+            <label for="nationalId">الرقم القومي <span class="required">*</span></label>
+            <input id="nationalId" type="text" inputmode="numeric" maxlength="14" formControlName="nationalId" placeholder="14 رقم" [class.invalid]="errorFor('nationalId')">
+            <small class="error" *ngIf="errorFor('nationalId')">{{ errorFor('nationalId') }}</small>
+          </div>
         </div>
 
         <div class="field field--spaced" *ngIf="showWhatsAppField">
           <label for="whatsAppNumber">ادخل رقم الواتس اب <span class="required">*</span></label>
           <input id="whatsAppNumber" type="tel" formControlName="whatsAppNumber" placeholder="01xxxxxxxxx" [class.invalid]="errorFor('whatsAppNumber')">
           <small class="error" *ngIf="errorFor('whatsAppNumber')">{{ errorFor('whatsAppNumber') }}</small>
-        </div>
-
-        <div class="field field--spaced">
-          <label for="nationalId">الرقم القومي <span class="required">*</span></label>
-          <input id="nationalId" type="text" inputmode="numeric" maxlength="14" formControlName="nationalId" placeholder="14 رقم" [class.invalid]="errorFor('nationalId')">
-          <small class="error" *ngIf="errorFor('nationalId')">{{ errorFor('nationalId') }}</small>
         </div>
       </section>
 

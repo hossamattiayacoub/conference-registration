@@ -112,6 +112,7 @@
   gap: 16px;
 }
 .grid--2 { grid-template-columns: repeat(2, 1fr); }
+.grid--3 { grid-template-columns: repeat(3, 1fr); }
 .grid--4 { grid-template-columns: repeat(4, 1fr); }
 
 .field {
@@ -481,6 +482,7 @@
 /* ---------- Responsive ---------- */
 @media (max-width: 720px) {
   .grid--4 { grid-template-columns: repeat(2, 1fr); }
+  .grid--3 { grid-template-columns: 1fr; }
   .grid--2 { grid-template-columns: 1fr; }
   .hero__title { font-size: 22px; }
   .card { padding: 4px 16px 24px; }
