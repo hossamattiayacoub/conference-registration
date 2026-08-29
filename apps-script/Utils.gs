@@ -212,6 +212,16 @@ function validateRegistration(data, isUpdate) {
     return { valid: false, message: 'رقم الموبايل غير صحيح' };
   }
 
+  // هل رقم الموبيل به واتس اب - WhatsAppNumber required only when checked.
+  if (data.HasWhatsApp === true) {
+    if (!data.WhatsAppNumber || String(data.WhatsAppNumber).trim() === '') {
+      return { valid: false, message: 'رقم الواتس اب مطلوب' };
+    }
+    if (!mobilePattern.test(String(data.WhatsAppNumber).trim())) {
+      return { valid: false, message: 'رقم الواتس اب غير صحيح' };
+    }
+  }
+
   const nationalIdPattern = /^[0-9]{14}$/;
   if (!nationalIdPattern.test(String(data.NationalId).trim())) {
     return { valid: false, message: 'الرقم القومي يجب أن يتكون من 14 رقم' };

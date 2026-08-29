@@ -84,6 +84,8 @@ export class RegistrationComponent {
     fourthName: this.fb.control('', [Validators.required, arabicTextValidator()]),
 
     mobile: this.fb.control('', [Validators.required, egyptianMobileValidator()]),
+    hasWhatsApp: this.fb.control(false),
+    whatsAppNumber: this.fb.control(''),
 
     gender: this.fb.control('', [Validators.required]),
     job: this.fb.control(''),
@@ -126,6 +128,8 @@ export class RegistrationComponent {
     this.form
       .get('marriedAndYourSpousebookInConference')!
       .valueChanges.subscribe(() => this.updateMarriedSectionValidators());
+
+    this.form.get('hasWhatsApp')!.valueChanges.subscribe(() => this.updateWhatsAppValidators());
 
     this.loadRooms();
     this.loadServantOptions();
@@ -238,6 +242,30 @@ export class RegistrationComponent {
         next: (config) => this.servantOptions.set(config.servantOptions ?? []),
         error: () => this.servantOptionsError.set('تعذر تحميل قائمة الخدام، برجاء إعادة المحاولة')
       });
+  }
+
+  /** "ادخل رقم الواتس اب" - shown/required only when the checkbox is checked. */
+  get showWhatsAppField(): boolean {
+    return this.form.get('hasWhatsApp')!.value === true;
+  }
+
+  /** Pure setter: applies (or removes) the WhatsAppNumber validator without touching its value. */
+  private setWhatsAppValidators(isRequired: boolean): void {
+    const whatsAppNumber = this.form.get('whatsAppNumber')!;
+    if (isRequired) {
+      whatsAppNumber.setValidators([Validators.required, egyptianMobileValidator()]);
+    } else {
+      whatsAppNumber.clearValidators();
+    }
+    whatsAppNumber.updateValueAndValidity({ emitEvent: false });
+  }
+
+  /** Re-evaluates showWhatsAppField and clears WhatsAppNumber whenever the checkbox is unchecked. */
+  private updateWhatsAppValidators(): void {
+    if (!this.showWhatsAppField) {
+      this.form.get('whatsAppNumber')!.setValue('', { emitEvent: false });
+    }
+    this.setWhatsAppValidators(this.showWhatsAppField);
   }
 
   /** "ادخل اسم الزوجه" - shown/required only when married === 'نعم'. */
@@ -409,6 +437,7 @@ export class RegistrationComponent {
       thirdName: { required: 'الاسم الثالث مطلوب', invalidArabicText: 'الاسم الثالث يجب أن يكون باللغة العربية' },
       fourthName: { required: 'الاسم الرابع مطلوب', invalidArabicText: 'الاسم الرابع يجب أن يكون باللغة العربية' },
       mobile: { required: 'رقم الموبايل مطلوب', invalidMobile: 'رقم الموبايل غير صحيح' },
+      whatsAppNumber: { required: 'رقم الواتس اب مطلوب', invalidMobile: 'رقم الواتس اب غير صحيح' },
       gender: { required: 'النوع مطلوب' },
       diocese: { required: 'الأبرشية مطلوبة' },
       attendanceDays: { required: 'أيام الحضور مطلوبة' },
@@ -552,6 +581,8 @@ export class RegistrationComponent {
       FourthName: raw.fourthName!,
       FullName: fullName,
       Mobile: raw.mobile!,
+      HasWhatsApp: raw.hasWhatsApp === true,
+      WhatsAppNumber: raw.hasWhatsApp === true ? (raw.whatsAppNumber ?? '').trim() : '',
       Gender: raw.gender as 'Male' | 'Female',
       Job: raw.job ?? '',
       Diocese: raw.diocese!,
@@ -599,6 +630,8 @@ export class RegistrationComponent {
       thirdName: '',
       fourthName: '',
       mobile: '',
+      hasWhatsApp: false,
+      whatsAppNumber: '',
       gender: '',
       job: '',
       diocese: '',

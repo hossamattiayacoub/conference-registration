@@ -44,6 +44,8 @@ const CONFIG = {
     'FourthName',
     'FullName',
     'Mobile',
+    'HasWhatsApp',
+    'WhatsAppNumber',
     'Gender',
     'Job',
     'Diocese',

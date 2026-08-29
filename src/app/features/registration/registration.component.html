@@ -55,6 +55,17 @@
             <label for="mobile">رقم الموبايل <span class="required">*</span></label>
             <input id="mobile" type="tel" formControlName="mobile" placeholder="01xxxxxxxxx" [class.invalid]="errorFor('mobile')">
             <small class="error" *ngIf="errorFor('mobile')">{{ errorFor('mobile') }}</small>
+
+            <label class="checkbox-row">
+              <input type="checkbox" formControlName="hasWhatsApp">
+              <span>هل رقم الموبيل به واتس اب</span>
+            </label>
+
+            <div class="field field--spaced" *ngIf="showWhatsAppField">
+              <label for="whatsAppNumber">ادخل رقم الواتس اب <span class="required">*</span></label>
+              <input id="whatsAppNumber" type="tel" formControlName="whatsAppNumber" placeholder="01xxxxxxxxx" [class.invalid]="errorFor('whatsAppNumber')">
+              <small class="error" *ngIf="errorFor('whatsAppNumber')">{{ errorFor('whatsAppNumber') }}</small>
+            </div>
           </div>
           <div class="field">
             <label for="nationalId">الرقم القومي <span class="required">*</span></label>

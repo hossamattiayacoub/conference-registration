@@ -88,6 +88,10 @@ export interface Registration {
   FourthName: string;
   FullName?: string;
   Mobile: string;
+  /** "هل رقم الموبيل به واتس اب" checkbox. */
+  HasWhatsApp?: boolean;
+  /** "ادخل رقم الواتس اب" - required only when HasWhatsApp is true. */
+  WhatsAppNumber?: string;
   Gender: Gender | '';
   Job?: string;
   Diocese: string;
