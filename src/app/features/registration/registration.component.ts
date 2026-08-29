@@ -95,6 +95,7 @@ export class RegistrationComponent {
 
     attendanceDays: this.fb.control('', [Validators.required]),
     transportationType: this.fb.control(''),
+    carLicenseNumber: this.fb.control(''),
     attendanceDay: this.fb.control(''),
     marriedAndYourSpousebookInConference: this.fb.control(''),
     wifeName: this.fb.control(''),
@@ -119,9 +120,13 @@ export class RegistrationComponent {
       .valueChanges.subscribe((value) => {
         this.updateAttendanceConditionalValidators(value);
         this.updateCarFieldValidators();
+        this.updateCarLicenseNumberValidators();
       });
 
-    this.form.get('transportationType')!.valueChanges.subscribe(() => this.updateCarFieldValidators());
+    this.form.get('transportationType')!.valueChanges.subscribe(() => {
+      this.updateCarFieldValidators();
+      this.updateCarLicenseNumberValidators();
+    });
 
     this.form
       .get('hasFriendsForAccommodation')!
@@ -193,6 +198,30 @@ export class RegistrationComponent {
   get showTransportationTypeField(): boolean {
     const value = this.form.get('attendanceDays')!.value;
     return value === 'الجمعة والسبت بدون مواصلات' || value === 'يوم واحد بدون مواصلات';
+  }
+
+  /** "ادخل رقم الرخصة" - shown/required whenever سيارة خاصة is selected, regardless of attendance day (independent of showCarFields below). */
+  get showCarLicenseNumberField(): boolean {
+    return this.form.get('transportationType')!.value === 'Private Car';
+  }
+
+  /** Pure setter: applies (or removes) the CarLicenseNumber validator without touching its value. */
+  private setCarLicenseNumberValidators(isRequired: boolean): void {
+    const carLicenseNumber = this.form.get('carLicenseNumber')!;
+    if (isRequired) {
+      carLicenseNumber.setValidators([Validators.required, notBlankValidator()]);
+    } else {
+      carLicenseNumber.clearValidators();
+    }
+    carLicenseNumber.updateValueAndValidity({ emitEvent: false });
+  }
+
+  /** Re-evaluates showCarLicenseNumberField and clears CarLicenseNumber whenever مواصلات عامة is selected (or transportation becomes unset). */
+  private updateCarLicenseNumberValidators(): void {
+    if (!this.showCarLicenseNumberField) {
+      this.form.get('carLicenseNumber')!.setValue('', { emitEvent: false });
+    }
+    this.setCarLicenseNumberValidators(this.showCarLicenseNumberField);
   }
 
   get showAttendanceDayField(): boolean {
@@ -451,6 +480,7 @@ export class RegistrationComponent {
       },
       wifeName: { required: 'اسم الزوجه مطلوب' },
       carNo: { required: 'رقم السيارة مطلوب', blank: 'رقم السيارة مطلوب' },
+      carLicenseNumber: { required: 'رقم الرخصة مطلوب', blank: 'رقم الرخصة مطلوب' },
       carLicense: {
         required: 'صورة الرخصة مطلوبة',
         invalidImageType: 'صيغة الصورة غير مدعومة (JPG, PNG, WEBP فقط)',
@@ -598,6 +628,7 @@ export class RegistrationComponent {
           : '',
       WifeName: raw.marriedAndYourSpousebookInConference === 'نعم' ? (raw.wifeName ?? '').trim() : '',
       CarNo: isCarScenario ? (raw.carNo ?? '').trim() : '',
+      CarLicenseNumber: raw.transportationType === 'Private Car' ? (raw.carLicenseNumber ?? '').trim() : '',
       ServantName: raw.servantName!,
       Notes: raw.notes ?? '',
       NationalId: raw.nationalId!,
@@ -644,6 +675,7 @@ export class RegistrationComponent {
       marriedAndYourSpousebookInConference: '',
       wifeName: '',
       carNo: '',
+      carLicenseNumber: '',
       carLicense: null,
       servantName: '',
       frontIdImage: null,

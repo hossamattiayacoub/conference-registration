@@ -135,6 +135,7 @@ function createRegistration(data) {
     HasFriendsForAccommodation: showAccommodation ? data.HasFriendsForAccommodation : '',
     RoomId: roomId === null ? '' : roomId,
     CarNo: isCarScenario ? String(data.CarNo || '').trim() : '',
+    CarLicenseNumber: data.TransportationType === 'Private Car' ? String(data.CarLicenseNumber || '').trim() : '',
     CarLicense: '',
     ReceiptTransferImage: '',
     CreatedAt: now,
@@ -254,6 +255,7 @@ function updateRegistration(data) {
     HasFriendsForAccommodation: showAccommodation ? data.HasFriendsForAccommodation : '',
     RoomId: roomId === null ? '' : roomId,
     CarNo: isCarScenario ? String(data.CarNo || '').trim() : '',
+    CarLicenseNumber: data.TransportationType === 'Private Car' ? String(data.CarLicenseNumber || '').trim() : '',
     CarLicense: isCarScenario ? existingRecord.CarLicense || '' : '',
     // Same reasoning as PaymentMethod/PaymentAmount above: always carried
     // forward untouched, never cleared/deleted by this flow anymore.

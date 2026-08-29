@@ -135,6 +135,8 @@ export interface Registration {
   RoomId?: number | null;
   /** Car number - required only when AttendanceDays is 'يوم واحد بدون مواصلات' and TransportationType is 'Private Car'. */
   CarNo?: string;
+  /** "ادخل رقم الرخصة" - required whenever TransportationType is 'Private Car', independent of AttendanceDays. */
+  CarLicenseNumber?: string;
   /**
    * Google Drive URL of the uploaded car license image. Stored as a single
    * column (not a FileId/FileUrl pair like the other three images) because

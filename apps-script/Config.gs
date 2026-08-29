@@ -68,6 +68,7 @@ const CONFIG = {
     'WifeName',
     'AccommodationFamilyMemberId',
     'CarNo',
+    'CarLicenseNumber',
     'CarLicense',
     'ReceiptTransferImage',
     'HasFriendsForAccommodation',

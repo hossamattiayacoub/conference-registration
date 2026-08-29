@@ -273,6 +273,12 @@ function validateRegistration(data, isUpdate) {
     }
   }
 
+  // ادخل رقم الرخصة - required whenever سيارة خاصة is selected, regardless of
+  // AttendanceDays (independent of the narrower isCarScenario check above).
+  if (data.TransportationType === 'Private Car' && (!data.CarLicenseNumber || String(data.CarLicenseNumber).trim() === '')) {
+    return { valid: false, message: 'رقم الرخصة مطلوب' };
+  }
+
   // التسكين (friends/group accommodation question + room dropdown) is shown
   // - and therefore required - only when the married question was answered
   // "لا". When married is "نعم" (WifeName shown instead) or unanswered
