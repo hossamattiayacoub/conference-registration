@@ -59,6 +59,12 @@ export const HAS_FRIENDS_FOR_ACCOMMODATION_OPTIONS: { value: string; label: stri
   { value: 'لا', label: 'لا' }
 ];
 
+/** "هل رقم الموبيل به واتس اب" - gates whether WhatsAppNumber is shown/required. */
+export const HAS_WHATSAPP_OPTIONS: { value: string; label: string }[] = [
+  { value: 'نعم', label: 'نعم' },
+  { value: 'لا', label: 'لا' }
+];
+
 /**
  * A room from the "Rooms" sheet, offered as an option in the accommodation
  * ("التسكين: اختار الغرفه") dropdown. Loaded dynamically via the "getRooms"
@@ -89,8 +95,9 @@ export interface Registration {
   FullName?: string;
   Mobile: string;
   /** "هل رقم الموبيل به واتس اب" checkbox. */
-  HasWhatsApp?: boolean;
-  /** "ادخل رقم الواتس اب" - required only when HasWhatsApp is true. */
+  /** "هل رقم الموبيل به واتس اب" - required radio (نعم/لا). */
+  HasWhatsApp?: string;
+  /** "ادخل رقم الواتس اب" - required only when HasWhatsApp === 'نعم'. */
   WhatsAppNumber?: string;
   Gender: Gender | '';
   Job?: string;
