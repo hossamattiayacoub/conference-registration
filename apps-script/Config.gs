@@ -66,6 +66,7 @@ const CONFIG = {
     'AttendanceDay',
     'MarriedAndYourSpousebookInConference',
     'WifeName',
+    'ChildrenAbove4Years',
     'AccommodationFamilyMemberId',
     'CarNo',
     'CarLicenseNumber',

@@ -108,6 +108,8 @@ export interface Registration {
   MarriedAndYourSpousebookInConference?: string;
   /** "ادخل اسم الزوجه" - required only when MarriedAndYourSpousebookInConference === 'نعم'. */
   WifeName?: string;
+  /** "ادخل عدد الاولاد فوق ال 4 سنوات؟" - optional, shown beside WifeName when married === 'نعم'. 0 is a valid value. */
+  ChildrenAbove4Years?: number | null;
   /** @deprecated Field removed from the UI; kept optional only so old sheet rows still parse without error. */
   ConferenceBooking?: string;
   /** @deprecated Field removed from the UI (طريقة الدفع); kept optional only so old sheet rows still parse without error. */

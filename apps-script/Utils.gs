@@ -260,6 +260,20 @@ function validateRegistration(data, isUpdate) {
     return { valid: false, message: 'اسم الزوجه مطلوب' };
   }
 
+  // ادخل عدد الاولاد فوق ال 4 سنوات؟ - optional (not required, matching
+  // WifeName's requiredness would be an unjustified assumption). When a
+  // value IS provided, it must be a non-negative number; 0 is valid and is
+  // never treated as "empty".
+  if (data.MarriedAndYourSpousebookInConference === 'نعم') {
+    const childrenRaw = data.ChildrenAbove4Years;
+    if (childrenRaw !== undefined && childrenRaw !== null && String(childrenRaw).trim() !== '') {
+      const childrenCount = Number(childrenRaw);
+      if (isNaN(childrenCount) || childrenCount < 0) {
+        return { valid: false, message: 'عدد الاولاد يجب أن يكون رقمًا صحيحًا موجبًا أو صفر' };
+      }
+    }
+  }
+
   // CarNo/CarLicense only apply to "يوم واحد بدون مواصلات" + "Private Car".
   const isCarScenario = data.AttendanceDays === 'يوم واحد بدون مواصلات' && data.TransportationType === 'Private Car';
   if (isCarScenario) {

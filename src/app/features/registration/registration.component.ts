@@ -1,11 +1,12 @@
 import { CommonModule } from '@angular/common';
 import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { finalize } from 'rxjs';
 
 import { RegistrationApiService } from '../../core/services/registration-api.service';
 import { ConfigService } from '../../core/services/config.service';
+import { AttendanceSelectionService } from '../../core/services/attendance-selection.service';
 import {
   ATTENDANCE_DAY_OPTIONS,
   ATTENDANCE_DAYS_OPTIONS,
@@ -35,7 +36,7 @@ interface AlertState {
 @Component({
   selector: 'app-registration',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink],
   templateUrl: './registration.component.html',
   styleUrl: './registration.component.scss'
 })
@@ -44,6 +45,7 @@ export class RegistrationComponent {
   private readonly api = inject(RegistrationApiService);
   private readonly configService = inject(ConfigService);
   private readonly router = inject(Router);
+  private readonly attendanceSelection = inject(AttendanceSelectionService);
 
   readonly genderOptions = GENDER_OPTIONS;
   readonly attendanceDaysOptions = ATTENDANCE_DAYS_OPTIONS;
@@ -99,6 +101,7 @@ export class RegistrationComponent {
     attendanceDay: this.fb.control(''),
     marriedAndYourSpousebookInConference: this.fb.control(''),
     wifeName: this.fb.control(''),
+    childrenAbove4Years: this.fb.control<number | null>(null),
     carNo: this.fb.control(''),
     carLicense: this.fb.control<File | string | null>(null),
 
@@ -137,6 +140,16 @@ export class RegistrationComponent {
       .valueChanges.subscribe(() => this.updateMarriedSectionValidators());
 
     this.form.get('hasWhatsApp')!.valueChanges.subscribe(() => this.updateWhatsAppValidators());
+
+    // The attendance-days value now comes from /attendance-selection (see
+    // attendanceSelectedGuard - this component never mounts without one).
+    // Setting it here, after every subscription above is registered, drives
+    // the exact same existing conditional cascade a radio-button click used
+    // to trigger - no duplicate business logic.
+    const selectedAttendanceDays = this.attendanceSelection.selected();
+    if (selectedAttendanceDays) {
+      this.form.get('attendanceDays')!.setValue(selectedAttendanceDays);
+    }
 
     this.loadRooms();
     this.loadServantOptions();
@@ -193,6 +206,11 @@ export class RegistrationComponent {
   get showMarriedField(): boolean {
     const value = this.form.get('attendanceDays')!.value;
     return value === 'الجمعة والسبت بالمواصلات' || value === 'الجمعة والسبت بدون مواصلات';
+  }
+
+  /** Read-only display of the option chosen on /attendance-selection - no radio buttons here anymore. */
+  get selectedAttendanceDaysLabel(): string {
+    return this.form.get('attendanceDays')!.value || '';
   }
 
   get showTransportationTypeField(): boolean {
@@ -330,6 +348,23 @@ export class RegistrationComponent {
     wifeName.updateValueAndValidity({ emitEvent: false });
   }
 
+  /**
+   * Pure setter for "ادخل عدد الاولاد فوق ال 4 سنوات؟" - optional (not
+   * required, per the business rule: don't assume it's mandatory just
+   * because WifeName is), but never negative when a value is provided. 0 is
+   * a valid value; Validators.min(0) does not flag it, and leaves an empty
+   * control alone (no "required" side effect).
+   */
+  private setChildrenAbove4YearsValidators(isVisible: boolean): void {
+    const childrenAbove4Years = this.form.get('childrenAbove4Years')!;
+    if (isVisible) {
+      childrenAbove4Years.setValidators([Validators.min(0)]);
+    } else {
+      childrenAbove4Years.clearValidators();
+    }
+    childrenAbove4Years.updateValueAndValidity({ emitEvent: false });
+  }
+
   /** Pure setter: applies (or removes) the HasFriendsForAccommodation validator without touching its value. */
   private setHasFriendsValidators(isRequired: boolean): void {
     const hasFriends = this.form.get('hasFriendsForAccommodation')!;
@@ -342,11 +377,12 @@ export class RegistrationComponent {
   }
 
   /**
-   * Re-evaluates which sub-section - WifeName vs the accommodation section -
-   * should be shown/required based on the married question's current value,
-   * clearing whichever one is now hidden so a stale value is never
-   * submitted. Also resyncs RoomId via updateRoomFieldValidators(), since
-   * showRoomDropdown now depends on showAccommodationSection too.
+   * Re-evaluates which sub-section - WifeName (+ChildrenAbove4Years) vs the
+   * accommodation section - should be shown/required based on the married
+   * question's current value, clearing whichever one is now hidden so a
+   * stale value is never submitted. Also resyncs RoomId via
+   * updateRoomFieldValidators(), since showRoomDropdown now depends on
+   * showAccommodationSection too.
    */
   private updateMarriedSectionValidators(): void {
     const showWife = this.showWifeNameField;
@@ -354,12 +390,14 @@ export class RegistrationComponent {
 
     if (!showWife) {
       this.form.get('wifeName')!.setValue('', { emitEvent: false });
+      this.form.get('childrenAbove4Years')!.setValue(null, { emitEvent: false });
     }
     if (!showAccommodation) {
       this.form.get('hasFriendsForAccommodation')!.setValue('', { emitEvent: false });
     }
 
     this.setWifeNameValidators(showWife);
+    this.setChildrenAbove4YearsValidators(showWife);
     this.setHasFriendsValidators(showAccommodation);
     this.updateRoomFieldValidators();
   }
@@ -479,6 +517,7 @@ export class RegistrationComponent {
         required: 'هل أنت متزوج وزوجك / زوجتك حجزت معك المؤتمر؟ مطلوب'
       },
       wifeName: { required: 'اسم الزوجه مطلوب' },
+      childrenAbove4Years: { min: 'العدد يجب ألا يكون أقل من صفر' },
       carNo: { required: 'رقم السيارة مطلوب', blank: 'رقم السيارة مطلوب' },
       carLicenseNumber: { required: 'رقم الرخصة مطلوب', blank: 'رقم الرخصة مطلوب' },
       carLicense: {
@@ -578,6 +617,7 @@ export class RegistrationComponent {
             if (response.success && response.data?.Id) {
               // New registration created - hand off to the dedicated success
               // page with the backend-generated Id (never a client-made one).
+              this.attendanceSelection.clear(); // Next registration must choose attendance again.
               this.router.navigate(['/registration-success'], {
                 state: { registrationId: response.data.Id }
               });
@@ -627,6 +667,7 @@ export class RegistrationComponent {
           ? raw.marriedAndYourSpousebookInConference ?? ''
           : '',
       WifeName: raw.marriedAndYourSpousebookInConference === 'نعم' ? (raw.wifeName ?? '').trim() : '',
+      ChildrenAbove4Years: raw.marriedAndYourSpousebookInConference === 'نعم' ? raw.childrenAbove4Years ?? null : null,
       CarNo: isCarScenario ? (raw.carNo ?? '').trim() : '',
       CarLicenseNumber: raw.transportationType === 'Private Car' ? (raw.carLicenseNumber ?? '').trim() : '',
       ServantName: raw.servantName!,
@@ -674,6 +715,7 @@ export class RegistrationComponent {
       attendanceDay: '',
       marriedAndYourSpousebookInConference: '',
       wifeName: '',
+      childrenAbove4Years: null,
       carNo: '',
       carLicenseNumber: '',
       carLicense: null,
@@ -691,6 +733,16 @@ export class RegistrationComponent {
     this.previews.personalPhoto = null;
     this.previews.carLicense = null;
     this.existingImageRefs = {};
+
+    // The reset above blanks attendanceDays, but this page no longer offers
+    // a way to re-pick it (that only happens on /attendance-selection now) -
+    // so restore the current selection right after, re-triggering the same
+    // existing conditional cascade.
+    const selectedAttendanceDays = this.attendanceSelection.selected();
+    if (selectedAttendanceDays) {
+      this.form.get('attendanceDays')!.setValue(selectedAttendanceDays);
+    }
+
     this.loadRooms(); // Refresh room availability for the next new registration.
   }
 

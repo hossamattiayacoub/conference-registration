@@ -113,13 +113,11 @@
       <!-- SECTION 6: Attendance days -->
       <section class="section">
         <h2 class="section__title"><span class="section__badge">05</span> أيام الحضور</h2>
-        <div class="radio-list">
-          <label class="radio-card radio-card--wide" *ngFor="let option of attendanceDaysOptions">
-            <input type="radio" formControlName="attendanceDays" [value]="option">
-            <span>{{ option }}</span>
-          </label>
+        <div class="attendance-summary">
+          <span class="attendance-summary__label">الطريقة المختارة:</span>
+          <span class="attendance-summary__value">{{ selectedAttendanceDaysLabel }}</span>
+          <a routerLink="/attendance-selection" class="attendance-summary__change">تغيير</a>
         </div>
-        <small class="error" *ngIf="errorFor('attendanceDays')">{{ errorFor('attendanceDays') }}</small>
 
         <div class="conditional-field" *ngIf="showMarriedField">
           <label>هل انت متزوج وزوجك / تك حجزت معك المؤتمر ؟ <span class="required">*</span></label>
@@ -131,10 +129,18 @@
           </div>
           <small class="error" *ngIf="errorFor('marriedAndYourSpousebookInConference')">{{ errorFor('marriedAndYourSpousebookInConference') }}</small>
 
-          <div class="field field--spaced" *ngIf="showWifeNameField">
-            <label for="wifeName">ادخل اسم الزوجه <span class="required">*</span></label>
-            <input id="wifeName" type="text" formControlName="wifeName" placeholder="اسم الزوجه" [class.invalid]="errorFor('wifeName')">
-            <small class="error" *ngIf="errorFor('wifeName')">{{ errorFor('wifeName') }}</small>
+          <div class="grid grid--2 field--spaced" *ngIf="showWifeNameField">
+            <div class="field">
+              <label for="wifeName">ادخل اسم الزوجه <span class="required">*</span></label>
+              <input id="wifeName" type="text" formControlName="wifeName" placeholder="اسم الزوجه" [class.invalid]="errorFor('wifeName')">
+              <small class="error" *ngIf="errorFor('wifeName')">{{ errorFor('wifeName') }}</small>
+            </div>
+
+            <div class="field">
+              <label for="childrenAbove4Years">ادخل عدد الاولاد فوق ال 4 سنوات؟</label>
+              <input id="childrenAbove4Years" type="number" min="0" formControlName="childrenAbove4Years" placeholder="0" [class.invalid]="errorFor('childrenAbove4Years')">
+              <small class="error" *ngIf="errorFor('childrenAbove4Years')">{{ errorFor('childrenAbove4Years') }}</small>
+            </div>
           </div>
 
           <div class="field field--spaced" *ngIf="showAccommodationSection">

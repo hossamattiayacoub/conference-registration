@@ -1,0 +1,38 @@
+<div class="page">
+  <header class="hero">
+    <div class="hero__pattern" aria-hidden="true"></div>
+    <div class="hero__content">
+      <span class="hero__eyebrow">تسجيل الحضور</span>
+      <h1 class="hero__title">مؤتمر Profile 7</h1>
+      <p class="hero__subtitle">اختر الطريقة التي ستحضر بها المؤتمر لبدء التسجيل</p>
+    </div>
+  </header>
+
+  <main class="card">
+    <div class="poster">
+      <img
+        *ngIf="!posterLoadFailed()"
+        src="assets/profile7-poster.jpg"
+        alt="ملصق مؤتمر Profile 7"
+        class="poster__image"
+        (error)="onPosterError()"
+      >
+      <div class="poster__fallback" *ngIf="posterLoadFailed()">
+        <span class="poster__fallback-title">مؤتمر Profile 7</span>
+      </div>
+    </div>
+
+    <div class="options">
+      <button
+        type="button"
+        class="option-card"
+        *ngFor="let option of options"
+        [class.option-card--selected]="selected() === option"
+        (click)="selectOption(option)"
+      >
+        <span class="option-card__check" *ngIf="selected() === option">✓</span>
+        <span class="option-card__title">{{ option }}</span>
+      </button>
+    </div>
+  </main>
+</div>

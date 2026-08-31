@@ -30,14 +30,14 @@
         <p class="qr-block__error" *ngIf="downloadError()">{{ downloadError() }}</p>
       </div>
 
-      <a routerLink="/" class="btn btn--ghost btn--lg">تسجيل جديد</a>
+      <a routerLink="/attendance-selection" class="btn btn--ghost btn--lg">تسجيل جديد</a>
     </main>
   </ng-container>
 
   <ng-template #noData>
     <main class="card card--empty">
       <p class="empty-message">لا توجد بيانات تسجيل متاحة.</p>
-      <a routerLink="/" class="btn btn--primary btn--lg">العودة إلى استمارة التسجيل</a>
+      <a routerLink="/attendance-selection" class="btn btn--primary btn--lg">العودة إلى استمارة التسجيل</a>
     </main>
   </ng-template>
 </div>

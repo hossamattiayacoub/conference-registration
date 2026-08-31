@@ -119,6 +119,7 @@ function createRegistration(data) {
       ? data.MarriedAndYourSpousebookInConference
       : '',
     WifeName: data.MarriedAndYourSpousebookInConference === 'نعم' ? String(data.WifeName || '').trim() : '',
+    ChildrenAbove4Years: data.MarriedAndYourSpousebookInConference === 'نعم' && data.ChildrenAbove4Years !== undefined && data.ChildrenAbove4Years !== null && String(data.ChildrenAbove4Years).trim() !== '' ? Number(data.ChildrenAbove4Years) : '',
     ConferenceBooking: '', // حجز المؤتمر removed from the UI; column kept only for backward compatibility.
     // PaymentMethod/PaymentAmount/ReceiptTransferImage (طريقة الدفع, مبلغ
     // الدفع, يرجى رفع صورة التحويل) removed from the UI - left empty for new
@@ -238,6 +239,7 @@ function updateRegistration(data) {
       ? data.MarriedAndYourSpousebookInConference
       : '',
     WifeName: data.MarriedAndYourSpousebookInConference === 'نعم' ? String(data.WifeName || '').trim() : '',
+    ChildrenAbove4Years: data.MarriedAndYourSpousebookInConference === 'نعم' && data.ChildrenAbove4Years !== undefined && data.ChildrenAbove4Years !== null && String(data.ChildrenAbove4Years).trim() !== '' ? Number(data.ChildrenAbove4Years) : '',
     ConferenceBooking: '', // حجز المؤتمر removed from the UI; column kept only for backward compatibility.
     // PaymentMethod/PaymentAmount/ReceiptTransferImage (طريقة الدفع, مبلغ
     // الدفع, يرجى رفع صورة التحويل) removed from the UI: no longer collected,
