@@ -23,16 +23,17 @@
     </div>
 
     <div class="options">
-      <button
-        type="button"
-        class="option-card"
-        *ngFor="let option of options"
-        [class.option-card--selected]="selected() === option"
-        (click)="selectOption(option)"
-      >
-        <span class="option-card__check" *ngIf="selected() === option">✓</span>
-        <span class="option-card__title">{{ option }}</span>
-      </button>
+      <app-attendance-card
+        *ngFor="let card of cards"
+        [number]="card.number"
+        [titleLine1]="card.titleLine1"
+        [titleLine2]="card.titleLine2"
+        [theme]="card.theme"
+        [icon]="card.icon"
+        [selected]="selected() === card.value"
+        [ariaLabel]="card.ariaLabel"
+        (select)="selectOption(card.value)"
+      ></app-attendance-card>
     </div>
   </main>
 </div>

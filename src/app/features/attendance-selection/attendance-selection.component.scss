@@ -112,62 +112,8 @@
 .options {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
+  align-items: stretch;
   gap: 16px;
-}
-
-.option-card {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  min-height: 140px;
-  padding: 24px 16px;
-  border-radius: var(--radius-md);
-  border: 2px solid var(--color-border);
-  background: #fff;
-  cursor: pointer;
-  font-family: var(--font-body);
-  transition: border-color 0.15s ease, background 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
-
-  &:hover {
-    border-color: var(--color-primary);
-    box-shadow: var(--shadow-soft);
-  }
-
-  &:active {
-    transform: scale(0.98);
-  }
-
-  &--selected {
-    border-color: var(--color-primary);
-    background: var(--color-primary-soft);
-  }
-
-  &__title {
-    font-size: 15.5px;
-    font-weight: 700;
-    color: var(--color-text);
-    line-height: 1.6;
-    text-align: center;
-  }
-
-  &__check {
-    position: absolute;
-    top: 10px;
-    left: 10px;
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    background: var(--color-primary);
-    color: #fff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 13px;
-    font-weight: 800;
-  }
 }
 
 /* ---------- Responsive ---------- */
@@ -177,5 +123,4 @@
   }
   .hero__title { font-size: 22px; }
   .card { padding: 20px 16px; }
-  .option-card { min-height: 100px; padding: 18px 16px; }
 }

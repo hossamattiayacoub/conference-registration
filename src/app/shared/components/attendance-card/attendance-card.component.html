@@ -1,0 +1,48 @@
+<button
+  type="button"
+  class="attendance-card"
+  [ngClass]="'attendance-card--' + theme"
+  [class.attendance-card--selected]="selected"
+  [attr.aria-pressed]="selected"
+  [attr.aria-label]="ariaLabel"
+  (click)="onActivate()"
+>
+  <span class="attendance-card__accent" aria-hidden="true"></span>
+
+  <span class="attendance-card__icon" aria-hidden="true">
+    <svg *ngIf="icon === 'bus'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3" y="4.5" width="18" height="12.5" rx="2.2"></rect>
+      <path d="M3 10.5h18"></path>
+      <rect x="5.5" y="6.5" width="4" height="2.7" rx="0.6"></rect>
+      <rect x="14.5" y="6.5" width="4" height="2.7" rx="0.6"></rect>
+      <circle cx="7.5" cy="19" r="1.5"></circle>
+      <circle cx="16.5" cy="19" r="1.5"></circle>
+    </svg>
+
+    <svg *ngIf="icon === 'no-bus'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3" y="4.5" width="18" height="12.5" rx="2.2"></rect>
+      <path d="M3 10.5h18"></path>
+      <rect x="5.5" y="6.5" width="4" height="2.7" rx="0.6"></rect>
+      <rect x="14.5" y="6.5" width="4" height="2.7" rx="0.6"></rect>
+      <circle cx="7.5" cy="19" r="1.5"></circle>
+      <circle cx="16.5" cy="19" r="1.5"></circle>
+      <line x1="1.5" y1="21.5" x2="22.5" y2="1.5"></line>
+    </svg>
+
+    <svg *ngIf="icon === 'calendar'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3.5" y="5" width="17" height="16" rx="2.2"></rect>
+      <path d="M3.5 9.8h17"></path>
+      <path d="M8 3.2v4M16 3.2v4"></path>
+      <rect x="8.6" y="13" width="4" height="4" rx="0.7" fill="currentColor" stroke="none"></rect>
+    </svg>
+  </span>
+
+  <span class="attendance-card__number">{{ number }}</span>
+
+  <span class="attendance-card__title">
+    <span class="attendance-card__title-line">{{ titleLine1 }}</span>
+    <span class="attendance-card__title-line">{{ titleLine2 }}</span>
+  </span>
+
+  <span class="attendance-card__cta">اختر هذا الخيار</span>
+</button>
