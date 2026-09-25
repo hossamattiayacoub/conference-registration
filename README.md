@@ -128,11 +128,10 @@ npm run build
 // src/app/core/models/registration.model.ts
 export const SERVANT_OPTIONS: string[] = [
   'فادي أمجد',
-  'كيرلس طانيوس',
-  'مريم سامي',
-  'مارينا ملاك',
-  'اميره سيدهم',
-  'بولا لطفي'
+  'سعد بيباوي',
+  'فيرنا حنا',
+  'دميانة عطية',
+  'حنان مراد'
 ];
 ```
 
