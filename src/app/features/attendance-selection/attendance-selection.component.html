@@ -12,8 +12,8 @@
     <div class="poster">
       <img
         *ngIf="!posterLoadFailed()"
-        src="assets/profile7-poster.jpg"
-        alt="ملصق مؤتمر Profile 7"
+        src="assets/images/profile7-banner.jpg"
+        alt="Profile 7 Conference"
         class="poster__image"
         (error)="onPosterError()"
       >
@@ -21,6 +21,8 @@
         <span class="poster__fallback-title">مؤتمر Profile 7</span>
       </div>
     </div>
+
+    <h2 class="options-heading">اختر أيام الحضور</h2>
 
     <div class="options">
       <app-attendance-card
