@@ -1,4 +1,11 @@
 <div class="page">
+  <div class="loading-overlay" *ngIf="isSubmitting()" role="status" aria-live="polite">
+    <div class="loading-overlay__content">
+      <span class="loading-overlay__spinner"></span>
+      <p class="loading-overlay__text">جاري التسجيل</p>
+    </div>
+  </div>
+
   <header class="hero">
     <div class="hero__pattern" aria-hidden="true"></div>
     <div class="hero__content">
