@@ -8,6 +8,19 @@
     </div>
   </header>
 
+  <div class="poster">
+    <img
+      *ngIf="!posterLoadFailed()"
+      src="assets/images/profile7-banner.jpg"
+      alt="Profile 7 Conference"
+      class="poster__image"
+      (error)="onPosterError()"
+    >
+    <div class="poster__fallback" *ngIf="posterLoadFailed()">
+      <span class="poster__fallback-title">مؤتمر Profile 7</span>
+    </div>
+  </div>
+
   <main class="card">
     <!-- Alerts -->
     <div class="alert" [class.alert--success]="alert()?.type === 'success'"

@@ -47,6 +47,8 @@ export class RegistrationComponent {
   private readonly router = inject(Router);
   private readonly attendanceSelection = inject(AttendanceSelectionService);
 
+  readonly posterLoadFailed = signal(false);
+
   readonly genderOptions = GENDER_OPTIONS;
   readonly attendanceDaysOptions = ATTENDANCE_DAYS_OPTIONS;
   readonly transportationTypeOptions = TRANSPORTATION_TYPE_OPTIONS;
@@ -281,6 +283,11 @@ export class RegistrationComponent {
   }
 
   /** Loads الخادم options from /assets/config.json. New options added there appear automatically - no code change needed. */
+  /** Reused banner asset (same file as /attendance-selection) - graceful fallback if it fails to load. */
+  onPosterError(): void {
+    this.posterLoadFailed.set(true);
+  }
+
   loadServantOptions(): void {
     this.isLoadingServantOptions.set(true);
     this.servantOptionsError.set(null);
