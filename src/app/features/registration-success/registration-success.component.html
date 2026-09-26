@@ -19,6 +19,8 @@
         <img *ngIf="qrCodeDataUrl() as qr" [src]="qr" alt="رمز QR الخاص بتسجيلك" class="qr-block__image">
         <p class="qr-block__error" *ngIf="qrCodeError()">{{ qrCodeError() }}</p>
 
+        <p class="qr-block__hint" *ngIf="qrCodeDataUrl()">نرجو الاحتفاظ بـ QR Code لاستخدامه عند الحضور.</p>
+
         <button
           type="button"
           class="btn btn--primary"

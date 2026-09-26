@@ -25,6 +25,7 @@ import { nationalIdValidator } from '../../shared/validators/national-id.validat
 import { imageFileValidator } from '../../shared/validators/image-file.validator';
 import { notBlankValidator } from '../../shared/validators/not-blank.validator';
 import { fileToUploadPayload } from '../../shared/utils/file-to-base64.util';
+import { toUserFacingApiErrorMessage } from '../../shared/utils/api-error.util';
 
 type ImageFieldKey = 'frontIdImage' | 'backIdImage' | 'personalPhoto' | 'carLicense';
 
@@ -296,7 +297,10 @@ export class RegistrationComponent {
       .pipe(finalize(() => this.isLoadingServantOptions.set(false)))
       .subscribe({
         next: (config) => this.servantOptions.set(config.servantOptions ?? []),
-        error: () => this.servantOptionsError.set('تعذر تحميل قائمة الخدام، برجاء إعادة المحاولة')
+        error: (err) =>
+          this.servantOptionsError.set(
+            toUserFacingApiErrorMessage(err, 'تعذر تحميل قائمة الخدام، برجاء إعادة المحاولة')
+          )
       });
   }
 
@@ -443,8 +447,8 @@ export class RegistrationComponent {
             this.roomsError.set('تعذر تحميل قائمة الغرف، برجاء إعادة المحاولة');
           }
         },
-        error: () => {
-          this.roomsError.set('تعذر تحميل قائمة الغرف، برجاء إعادة المحاولة');
+        error: (err) => {
+          this.roomsError.set(toUserFacingApiErrorMessage(err, 'تعذر تحميل قائمة الغرف، برجاء إعادة المحاولة'));
         }
       });
   }
@@ -637,8 +641,8 @@ export class RegistrationComponent {
               this.alert.set({ type: 'error', message: response.message || 'حدث خطأ أثناء الإرسال' });
             }
           },
-          error: () => {
-            this.alert.set({ type: 'error', message: 'تعذر الاتصال بالخادم، يرجى المحاولة مرة أخرى' });
+          error: (err) => {
+            this.alert.set({ type: 'error', message: toUserFacingApiErrorMessage(err) });
           }
         });
     } catch {

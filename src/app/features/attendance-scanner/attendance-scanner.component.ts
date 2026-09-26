@@ -4,6 +4,7 @@ import { RouterLink } from '@angular/router';
 import { Html5Qrcode } from 'html5-qrcode';
 import { RegistrationApiService } from '../../core/services/registration-api.service';
 import { AttendanceStatus } from '../../core/models/attendance.model';
+import { toUserFacingApiErrorMessage } from '../../shared/utils/api-error.util';
 
 type ScreenState = 'starting' | 'scanning' | 'verifying' | 'result' | 'camera-error';
 type ResultStatus = AttendanceStatus | 'invalid-qr';
@@ -101,7 +102,8 @@ export class AttendanceScannerComponent implements OnInit, OnDestroy {
     this.screenState.set('verifying');
     this.api.recordAttendance(id).subscribe({
       next: (response) => this.showResult(response.status, response.message, response.data?.id ?? id),
-      error: () => this.showResult('server-busy', 'تعذر الاتصال بالخادم، يرجى المحاولة مرة أخرى', id)
+      error: (err) =>
+        this.showResult('server-busy', toUserFacingApiErrorMessage(err), id)
     });
   }
 
