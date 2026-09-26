@@ -603,6 +603,11 @@ export class RegistrationComponent {
   }
 
   async submit(): Promise<void> {
+    // [perf] Diagnostic timing only - logged to the browser console, no
+    // behavior change. Remove or ignore these once you're done profiling.
+    const perfStart = performance.now();
+    console.log('[perf] Registration start');
+
     this.alert.set(null);
     this.form.markAllAsTouched();
 
@@ -618,13 +623,16 @@ export class RegistrationComponent {
 
     this.isSubmitting.set(true);
     try {
+      const payloadStart = performance.now();
       const payload = await this.buildPayload();
+      console.log('[perf] Payload preparation: ' + (performance.now() - payloadStart).toFixed(0) + ' ms');
 
       this.api
         .createRegistration(payload)
         .pipe(finalize(() => this.isSubmitting.set(false)))
         .subscribe({
           next: (response) => {
+            console.log('[perf] Total (client, click\u2192response): ' + (performance.now() - perfStart).toFixed(0) + ' ms');
             if (response.success && response.data?.Id) {
               // New registration created - hand off to the dedicated success
               // page with the backend-generated Id (never a client-made one).
@@ -642,6 +650,7 @@ export class RegistrationComponent {
             }
           },
           error: (err) => {
+            console.log('[perf] Total (client, click\u2192error): ' + (performance.now() - perfStart).toFixed(0) + ' ms');
             this.alert.set({ type: 'error', message: toUserFacingApiErrorMessage(err) });
           }
         });

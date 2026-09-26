@@ -71,17 +71,25 @@ function jsonOutput_(responseObject) {
  * Rejects the request when the mobile number already exists.
  */
 function createRegistration(data) {
+  // [perf] Diagnostic timing only - no behavior change. Logged lines are
+  // visible in Apps Script's "Executions" log (Extensions > Apps Script >
+  // Executions, or View > Executions in the older editor).
+  const perfStart = Date.now();
+  console.log('[perf] Apps Script received');
+
   createHeadersIfNeeded();
   const sheet = getRegistrationSheet_();
   const headerMap = getHeaderIndexMap_(sheet);
 
   const validation = validateRegistration(data, false);
   if (!validation.valid) {
+    console.log('[perf] Sheet validation (failed): ' + (Date.now() - perfStart) + ' ms');
     return createApiResponse(false, validation.message, null);
   }
 
   const existing = findRowByMobile_(sheet, data.Mobile);
   if (existing) {
+    console.log('[perf] Sheet validation (duplicate mobile): ' + (Date.now() - perfStart) + ' ms');
     const existingHeaderMap = existing.headerMap;
     const existingId = existing.row[existingHeaderMap['Id']];
     return createApiResponse(false, 'يوجد تسجيل بالفعل باستخدام رقم الموبايل ده', { id: existingId });
@@ -93,9 +101,13 @@ function createRegistration(data) {
   if (roomId !== null) {
     const roomValidation = validateRoomCapacity_(roomId, null);
     if (!roomValidation.valid) {
+      console.log('[perf] Sheet validation (room full): ' + (Date.now() - perfStart) + ' ms');
       return createApiResponse(false, roomValidation.message, null);
     }
   }
+
+  const sheetValidationMs = Date.now() - perfStart;
+  console.log('[perf] Sheet validation: ' + sheetValidationMs + ' ms');
 
   const now = new Date().toISOString();
   const isCarScenario = isCarScenario_(data.AttendanceDays, data.TransportationType);
@@ -146,7 +158,11 @@ function createRegistration(data) {
   attachUploadedImages_(record, data);
   attachCarLicenseImage_(record, data, null, isCarScenario);
 
+  const appendStart = Date.now();
   sheet.appendRow(registrationToRow_(record, headerMap));
+  console.log('[perf] appendRow: ' + (Date.now() - appendStart) + ' ms');
+
+  console.log('[perf] Total: ' + (Date.now() - perfStart) + ' ms');
   return createApiResponse(true, 'تم إضافة التسجيل بنجاح', record);
 }
 
@@ -329,6 +345,7 @@ function attachUploadedImages_(record, data, existingRecord) {
   uploads.forEach(function (item) {
     const payload = data[item.payloadKey];
     if (payload && payload.base64Data) {
+      const uploadStart = Date.now();
       if (existingRecord && existingRecord[item.idKey]) {
         tryDeleteFile_(existingRecord[item.idKey]);
       }
@@ -338,6 +355,8 @@ function attachUploadedImages_(record, data, existingRecord) {
       const uploaded = uploadImage(payload.base64Data, fileName, payload.mimeType, item.folderId);
       record[item.idKey] = uploaded.fileId;
       record[item.urlKey] = uploaded.fileUrl;
+      // [perf] Diagnostic timing only - no behavior change.
+      console.log('[perf] ' + item.label + ' image upload: ' + (Date.now() - uploadStart) + ' ms');
     }
   });
 }
@@ -358,6 +377,7 @@ function attachCarLicenseImage_(record, data, existingRecord, isCarScenario) {
   }
   const carLicensePayload = data.CarLicenseImage;
   if (carLicensePayload && carLicensePayload.base64Data) {
+    const uploadStart = Date.now();
     if (existingRecord && existingRecord.CarLicense) {
       tryDeleteFile_(extractDriveFileIdFromUrl_(existingRecord.CarLicense));
     }
@@ -369,6 +389,8 @@ function attachCarLicenseImage_(record, data, existingRecord, isCarScenario) {
       CONFIG.CAR_LICENSE_FOLDER_ID
     );
     record.CarLicense = uploaded.fileUrl;
+    // [perf] Diagnostic timing only - no behavior change.
+    console.log('[perf] Car license upload: ' + (Date.now() - uploadStart) + ' ms');
   }
 }
 
