@@ -352,6 +352,35 @@ function buildDriveFileName_(registrationId, label, originalFileName) {
 }
 
 /**
+ * Strips only characters that are actually invalid/unsafe in a Drive/file
+ * system filename. Arabic characters, spaces, and the rest of the person's
+ * name are left completely untouched.
+ */
+function sanitizeForFileName_(text) {
+  return String(text || '')
+    .replace(/[\\/:*?"<>|]/g, '')
+    .trim();
+}
+
+/**
+ * Builds the filename for the two identity-card images ONLY (صورة البطاقة
+ * الأمامية / صورة البطاقة الخلفية): "{registrationId}_{FullName}_{Front|Back}.{ext}"
+ * e.g. "3f2a1c9e-...-uuid_حسام عطية_Front.jpg". Kept separate from
+ * buildDriveFileName_ (used by PersonalPhoto/CarLicense/ReceiptTransferImage)
+ * since only these two fields use this naming format.
+ */
+function buildIdentityImageFileName_(registrationId, fullName, frontOrBack, originalFileName) {
+  let extension = '';
+  const name = String(originalFileName || '');
+  const dotIndex = name.lastIndexOf('.');
+  if (dotIndex !== -1) {
+    extension = name.substring(dotIndex); // includes the leading dot
+  }
+  const safeFullName = sanitizeForFileName_(fullName);
+  return String(registrationId) + '_' + safeFullName + '_' + frontOrBack + extension;
+}
+
+/**
  * Decodes a Base64 image, uploads it to the given Drive folder and
  * returns { fileId, fileUrl }.
  */

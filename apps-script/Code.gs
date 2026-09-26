@@ -291,8 +291,12 @@ function updateRegistration(data) {
 /**
  * Uploads any new image payloads found on `data` and writes the resulting
  * fileId/fileUrl pairs onto `record`. When updating and a new image
- * replaces an old one, the old Drive file is trashed. Each uploaded file is
- * renamed to "{record.Id}-{label}.{ext}" so it is traceable in Drive.
+ * replaces an old one, the old Drive file is trashed.
+ *
+ * FrontId/BackId are renamed to "{record.Id}_{record.FullName}_Front|Back.{ext}"
+ * (per the صورة البطاقة الأمامية/الخلفية naming requirement). PersonalPhoto
+ * keeps the existing "{record.Id}-PersonalPhoto.{ext}" scheme unchanged -
+ * only the two identity-card images use the new format.
  */
 function attachUploadedImages_(record, data, existingRecord) {
   const uploads = [
@@ -301,21 +305,24 @@ function attachUploadedImages_(record, data, existingRecord) {
       idKey: 'FrontIdFileId',
       urlKey: 'FrontIdFileUrl',
       folderId: CONFIG.FRONT_ID_FOLDER_ID,
-      label: 'FrontId'
+      label: 'FrontId',
+      identityLabel: 'Front'
     },
     {
       payloadKey: 'BackIdImage',
       idKey: 'BackIdFileId',
       urlKey: 'BackIdFileUrl',
       folderId: CONFIG.BACK_ID_FOLDER_ID,
-      label: 'BackId'
+      label: 'BackId',
+      identityLabel: 'Back'
     },
     {
       payloadKey: 'PersonalPhotoImage',
       idKey: 'PersonalPhotoFileId',
       urlKey: 'PersonalPhotoFileUrl',
       folderId: CONFIG.PERSONAL_PHOTO_FOLDER_ID,
-      label: 'PersonalPhoto'
+      label: 'PersonalPhoto',
+      identityLabel: null
     }
   ];
 
@@ -325,7 +332,9 @@ function attachUploadedImages_(record, data, existingRecord) {
       if (existingRecord && existingRecord[item.idKey]) {
         tryDeleteFile_(existingRecord[item.idKey]);
       }
-      const fileName = buildDriveFileName_(record.Id, item.label, payload.fileName);
+      const fileName = item.identityLabel
+        ? buildIdentityImageFileName_(record.Id, record.FullName, item.identityLabel, payload.fileName)
+        : buildDriveFileName_(record.Id, item.label, payload.fileName);
       const uploaded = uploadImage(payload.base64Data, fileName, payload.mimeType, item.folderId);
       record[item.idKey] = uploaded.fileId;
       record[item.urlKey] = uploaded.fileUrl;
