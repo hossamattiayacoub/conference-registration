@@ -38,6 +38,7 @@ const CONFIG = {
   // Keep this array in sync with the Registration model used in Angular.
   HEADERS: [
     'Id',
+    'SerialNo',
     'FirstName',
     'SecondName',
     'ThirdName',
@@ -79,5 +80,28 @@ const CONFIG = {
   ],
 
   MAX_IMAGE_SIZE_BYTES: 10 * 1024 * 1024,
-  ALLOWED_MIME_TYPES: ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
+  ALLOWED_MIME_TYPES: ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'],
+
+  // UploadLog: internal bookkeeping sheet (auto-created if missing, like
+  // Registeration) tracking every image uploaded via the "uploadImage"
+  // action - independent of, and before, the final "create" submission.
+  // Lets an incomplete/abandoned registration attempt's files still be
+  // identified later (see uploadImageAction/upsertUploadLogRow_ in Code.gs).
+  UPLOAD_LOG_SHEET_NAME: 'UploadLog',
+  UPLOAD_LOG_HEADERS: [
+    'RegistrationId',
+    'SerialNo',
+    'ImageType',
+    'FileId',
+    'FileUrl',
+    'FileName',
+    'Status',
+    'CreatedAt',
+    'UpdatedAt'
+  ],
+
+  // ScriptProperties key backing the concurrency-safe SerialNo counter (see
+  // reserveSerialNo in Code.gs). A single incrementing value, not a sheet
+  // row count - safe against future row deletions.
+  SERIAL_NO_PROPERTY_KEY: 'lastSerialNo'
 };

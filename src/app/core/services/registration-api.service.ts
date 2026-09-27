@@ -4,7 +4,14 @@ import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { ApiResponse } from '../models/api-response.model';
 import { AttendanceResponse } from '../models/attendance.model';
-import { Registration, RegistrationSubmitPayload, Room } from '../models/registration.model';
+import {
+  Registration,
+  RegistrationSubmitPayload,
+  ReserveSerialNoResult,
+  Room,
+  UploadImageRequest,
+  UploadImageResult
+} from '../models/registration.model';
 
 /**
  * Wraps all calls to the Google Apps Script Web App.
@@ -53,6 +60,32 @@ export class RegistrationApiService {
     return this.http.post<AttendanceResponse>(
       this.apiUrl,
       JSON.stringify({ action: 'recordAttendance', id }),
+      this.postOptions
+    );
+  }
+
+  /**
+   * Reserves the next human-readable SerialNo for a registration attempt.
+   * Called lazily, once, the first time the person actually tries to upload
+   * an image - never on page load (see registration.component.ts).
+   */
+  reserveSerialNo(registrationId: string): Observable<ApiResponse<ReserveSerialNoResult>> {
+    return this.http.post<ApiResponse<ReserveSerialNoResult>>(
+      this.apiUrl,
+      JSON.stringify({ action: 'reserveSerialNo', data: { RegistrationId: registrationId } }),
+      this.postOptions
+    );
+  }
+
+  /**
+   * Uploads a single image independently of final registration submission.
+   * The final createRegistration() call never receives Base64 image data -
+   * only the file references this returns.
+   */
+  uploadImage(request: UploadImageRequest): Observable<ApiResponse<UploadImageResult>> {
+    return this.http.post<ApiResponse<UploadImageResult>>(
+      this.apiUrl,
+      JSON.stringify({ action: 'uploadImage', data: request }),
       this.postOptions
     );
   }

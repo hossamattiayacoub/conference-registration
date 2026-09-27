@@ -281,8 +281,8 @@ function validateRegistration(data, isUpdate) {
       return { valid: false, message: 'رقم السيارة مطلوب' };
     }
     const hasCarLicenseUpload = data.CarLicenseImage && data.CarLicenseImage.base64Data;
-    const hasExistingCarLicense = isUpdate && data.CarLicense;
-    if (!hasCarLicenseUpload && !hasExistingCarLicense) {
+    const hasCarLicenseReference = Boolean(data.CarLicense);
+    if (!hasCarLicenseUpload && !hasCarLicenseReference) {
       return { valid: false, message: 'صورة الرخصة مطلوبة' };
     }
   }
@@ -314,8 +314,26 @@ function validateRegistration(data, isUpdate) {
     }
   }
 
-  // On create, the three identity images must be present (either a new
-  // upload payload, or - for updates - an already-stored file reference).
+  // Client-generated RegistrationId (crypto.randomUUID()) and the
+  // server-reserved SerialNo must both be present before a NEW registration
+  // can be created - both are established during the image-upload phase,
+  // well before this final "create" call. Not required for updateRegistration
+  // (unused by the current UI, kept backward-compatible with its old contract).
+  if (!isUpdate) {
+    if (!data.Id || !isValidUuid_(data.Id)) {
+      return { valid: false, message: 'معرف التسجيل غير صالح' };
+    }
+    const serialNoValue = Number(data.SerialNo);
+    if (!data.SerialNo || isNaN(serialNoValue) || serialNoValue <= 0) {
+      return { valid: false, message: 'الرقم التسلسلي مطلوب' };
+    }
+  }
+
+  // On create, the three identity images must already be uploaded (see the
+  // "uploadImage" action) - a file reference (FileId/FileUrl) must be
+  // present. Still accepts the legacy base64-payload-or-existing-on-update
+  // path too, since updateRegistration (unused by the current UI, kept for
+  // backward compatibility) still supports replacing an image inline.
   const imageChecks = [
     ['FrontIdImage', 'FrontIdFileUrl', 'صورة البطاقة الأمامية مطلوبة'],
     ['BackIdImage', 'BackIdFileUrl', 'صورة البطاقة الخلفية مطلوبة'],
@@ -326,8 +344,8 @@ function validateRegistration(data, isUpdate) {
     const existingUrlField = imageChecks[j][1];
     const message = imageChecks[j][2];
     const hasUpload = data[uploadField] && data[uploadField].base64Data;
-    const hasExisting = isUpdate && data[existingUrlField];
-    if (!hasUpload && !hasExisting) {
+    const hasFileReference = Boolean(data[existingUrlField]);
+    if (!hasUpload && !hasFileReference) {
       return { valid: false, message: message };
     }
   }
@@ -378,6 +396,37 @@ function buildIdentityImageFileName_(registrationId, fullName, frontOrBack, orig
   }
   const safeFullName = sanitizeForFileName_(fullName);
   return String(registrationId) + '_' + safeFullName + '_' + frontOrBack + extension;
+}
+
+/**
+ * Validates that a value is a standard UUID (the shape produced by both
+ * Utilities.getUuid() and the browser's crypto.randomUUID()). Used as a
+ * defense-in-depth check on the client-generated RegistrationId - the
+ * client is trusted to generate a real UUID, but this catches obviously
+ * malformed/missing values before they're used as a Drive filename component
+ * or written into the sheet.
+ */
+function isValidUuid_(value) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(value || ''));
+}
+
+/**
+ * Builds the filename for images uploaded via the independent "uploadImage"
+ * action (Front/Back/Personal/CarLicense - all four, unified):
+ * "{SerialNo}_{FullName}_{ImageType}.{ext}", e.g. "42_حسام عطية_Front.jpg".
+ * SerialNo (not RegistrationId) is used here per the human-readable-filename
+ * requirement; RegistrationId remains the internal lookup/association key
+ * used throughout UploadLog.
+ */
+function buildUploadFileName_(serialNo, fullName, imageType, originalFileName) {
+  let extension = '';
+  const name = String(originalFileName || '');
+  const dotIndex = name.lastIndexOf('.');
+  if (dotIndex !== -1) {
+    extension = name.substring(dotIndex); // includes the leading dot
+  }
+  const safeFullName = sanitizeForFileName_(fullName);
+  return String(serialNo) + '_' + safeFullName + '_' + imageType + extension;
 }
 
 /**
@@ -656,3 +705,93 @@ function attendanceRecordExists_(sheet, id) {
 function createAttendanceResponse_(success, status, message, id) {
   return { success: success, status: status, message: message, data: { id: id } };
 }
+
+/* ==========================================================================
+ * UploadLog (independent per-image upload, before final "create" submission)
+ * ========================================================================== */
+
+/**
+ * Returns the UploadLog sheet, creating it (and its header row) if it does
+ * not yet exist - this is an internal bookkeeping sheet the app itself
+ * needs, so it self-creates like Registeration, rather than requiring the
+ * sheet to be pre-created manually like Rooms/AttendanceList.
+ */
+function getUploadLogSheet_() {
+  const spreadsheet = SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID);
+  let sheet = spreadsheet.getSheetByName(CONFIG.UPLOAD_LOG_SHEET_NAME);
+  if (!sheet) {
+    sheet = spreadsheet.insertSheet(CONFIG.UPLOAD_LOG_SHEET_NAME);
+  }
+  if (sheet.getLastRow() === 0) {
+    sheet.getRange(1, 1, 1, CONFIG.UPLOAD_LOG_HEADERS.length).setValues([CONFIG.UPLOAD_LOG_HEADERS]);
+    sheet.setFrozenRows(1);
+  }
+  return sheet;
+}
+
+/**
+ * Finds the existing UploadLog row (if any) for a given RegistrationId +
+ * ImageType pair. Returns { rowIndex, fileId, createdAt } or null.
+ */
+function findUploadLogRow_(sheet, registrationId, imageType) {
+  const headerMap = getHeaderIndexMapFor_(sheet, CONFIG.UPLOAD_LOG_HEADERS);
+  const idCol = headerMap['RegistrationId'];
+  const typeCol = headerMap['ImageType'];
+  const fileIdCol = headerMap['FileId'];
+  const createdAtCol = headerMap['CreatedAt'];
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2 || idCol === undefined || typeCol === undefined) {
+    return null;
+  }
+  const values = sheet.getRange(2, 1, lastRow - 1, sheet.getLastColumn()).getValues();
+  for (let i = 0; i < values.length; i++) {
+    const row = values[i];
+    if (
+      String(row[idCol]).trim() === String(registrationId).trim() &&
+      String(row[typeCol]).trim() === String(imageType).trim()
+    ) {
+      return {
+        rowIndex: i + 2,
+        fileId: fileIdCol !== undefined ? row[fileIdCol] : null,
+        createdAt: createdAtCol !== undefined ? row[createdAtCol] : null
+      };
+    }
+  }
+  return null;
+}
+
+/**
+ * Inserts a new UploadLog row, or updates the existing one for this
+ * RegistrationId+ImageType IN PLACE (never appends a second row for the
+ * same image slot - replacing an image updates its existing log entry).
+ * CreatedAt is preserved across updates; UpdatedAt always reflects "now".
+ */
+function upsertUploadLogRow_(sheet, existingLogRow, fields) {
+  const headerMap = getHeaderIndexMapFor_(sheet, CONFIG.UPLOAD_LOG_HEADERS);
+  const now = new Date().toISOString();
+  const createdAt = existingLogRow && existingLogRow.createdAt ? existingLogRow.createdAt : now;
+
+  const values = {
+    RegistrationId: fields.registrationId,
+    SerialNo: fields.serialNo,
+    ImageType: fields.imageType,
+    FileId: fields.fileId,
+    FileUrl: fields.fileUrl,
+    FileName: fields.fileName,
+    Status: fields.status,
+    CreatedAt: createdAt,
+    UpdatedAt: now
+  };
+
+  const row = CONFIG.UPLOAD_LOG_HEADERS.map(function (header) {
+    const value = values[header];
+    return value === undefined || value === null ? '' : value;
+  });
+
+  if (existingLogRow) {
+    sheet.getRange(existingLogRow.rowIndex, 1, 1, row.length).setValues([row]);
+  } else {
+    sheet.appendRow(row);
+  }
+}
+

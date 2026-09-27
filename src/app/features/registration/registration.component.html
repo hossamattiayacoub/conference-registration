@@ -241,20 +241,39 @@
 
           <div class="upload-box">
             <span class="upload-box__label">صورة الرخصة <span class="required">*</span></span>
-            <div class="upload-box__area">
-              <img *ngIf="previews.carLicense" [src]="previews.carLicense" alt="معاينة صورة الرخصة">
-              <label class="upload-box__cta" *ngIf="!previews.carLicense">
-                <input type="file" accept="image/png,image/jpeg,image/webp" (change)="onFileSelected($event, 'carLicense')" hidden>
-                اختر صورة
-              </label>
-            </div>
-            <div class="upload-box__actions" *ngIf="previews.carLicense">
-              <label class="btn btn--ghost btn--sm">
-                تغيير الصورة
-                <input type="file" accept="image/png,image/jpeg,image/webp" (change)="onFileSelected($event, 'carLicense')" hidden>
-              </label>
-              <button type="button" class="btn btn--danger-ghost btn--sm" (click)="removeImage('carLicense')">إزالة</button>
-            </div>
+
+            <small class="hint" *ngIf="!isFullNameReady">{{ fullNameGateMessage }}</small>
+
+            <ng-container *ngIf="isFullNameReady">
+              <div class="upload-box__area">
+                <img *ngIf="previews.carLicense" [src]="previews.carLicense" alt="معاينة صورة الرخصة">
+                <label class="upload-box__cta" *ngIf="!previews.carLicense">
+                  <input type="file" accept="image/png,image/jpeg,image/webp" (change)="onFileSelected($event, 'carLicense')" hidden>
+                  اختر صورة
+                </label>
+              </div>
+              <div class="upload-box__actions" *ngIf="previews.carLicense">
+                <label class="btn btn--ghost btn--sm">
+                  تغيير الصورة
+                  <input type="file" accept="image/png,image/jpeg,image/webp" (change)="onFileSelected($event, 'carLicense')" hidden>
+                </label>
+                <button type="button" class="btn btn--danger-ghost btn--sm" (click)="removeImage('carLicense')">إزالة</button>
+              </div>
+
+              <div class="upload-status" *ngIf="previews.carLicense">
+                <button
+                  type="button"
+                  class="btn btn--primary btn--sm"
+                  *ngIf="imageUploads.carLicense.status === 'idle' || imageUploads.carLicense.status === 'error' || imageUploads.carLicense.status === 'stale'"
+                  (click)="uploadSelectedImage('carLicense')"
+                >رفع الصورة</button>
+                <span class="upload-status__uploading" *ngIf="imageUploads.carLicense.status === 'uploading'">جاري رفع الصورة...</span>
+                <span class="upload-status__success" *ngIf="imageUploads.carLicense.status === 'uploaded'">✓ تم رفع الصورة بنجاح</span>
+                <small class="error" *ngIf="imageUploads.carLicense.status === 'stale'">تم تغيير الاسم، برجاء إعادة رفع الصورة</small>
+                <small class="error" *ngIf="imageUploads.carLicense.status === 'error' && imageUploads.carLicense.errorMessage">{{ imageUploads.carLicense.errorMessage }}</small>
+              </div>
+            </ng-container>
+
             <small class="error" *ngIf="errorFor('carLicense')">{{ errorFor('carLicense') }}</small>
           </div>
         </div>
@@ -283,39 +302,77 @@
         <div class="grid grid--2">
           <div class="upload-box">
             <span class="upload-box__label">صورة البطاقة الأمامية <span class="required">*</span></span>
-            <div class="upload-box__area">
-              <img *ngIf="previews.frontIdImage" [src]="previews.frontIdImage" alt="معاينة صورة البطاقة الأمامية">
-              <label class="upload-box__cta" *ngIf="!previews.frontIdImage">
-                <input type="file" accept="image/png,image/jpeg,image/webp" (change)="onFileSelected($event, 'frontIdImage')" hidden>
-                اختر صورة
-              </label>
-            </div>
-            <div class="upload-box__actions" *ngIf="previews.frontIdImage">
-              <label class="btn btn--ghost btn--sm">
-                تغيير الصورة
-                <input type="file" accept="image/png,image/jpeg,image/webp" (change)="onFileSelected($event, 'frontIdImage')" hidden>
-              </label>
-              <button type="button" class="btn btn--danger-ghost btn--sm" (click)="removeImage('frontIdImage')">إزالة</button>
-            </div>
+
+            <small class="hint" *ngIf="!isFullNameReady">{{ fullNameGateMessage }}</small>
+
+            <ng-container *ngIf="isFullNameReady">
+              <div class="upload-box__area">
+                <img *ngIf="previews.frontIdImage" [src]="previews.frontIdImage" alt="معاينة صورة البطاقة الأمامية">
+                <label class="upload-box__cta" *ngIf="!previews.frontIdImage">
+                  <input type="file" accept="image/png,image/jpeg,image/webp" (change)="onFileSelected($event, 'frontIdImage')" hidden>
+                  اختر صورة
+                </label>
+              </div>
+              <div class="upload-box__actions" *ngIf="previews.frontIdImage">
+                <label class="btn btn--ghost btn--sm">
+                  تغيير الصورة
+                  <input type="file" accept="image/png,image/jpeg,image/webp" (change)="onFileSelected($event, 'frontIdImage')" hidden>
+                </label>
+                <button type="button" class="btn btn--danger-ghost btn--sm" (click)="removeImage('frontIdImage')">إزالة</button>
+              </div>
+
+              <div class="upload-status" *ngIf="previews.frontIdImage">
+                <button
+                  type="button"
+                  class="btn btn--primary btn--sm"
+                  *ngIf="imageUploads.frontIdImage.status === 'idle' || imageUploads.frontIdImage.status === 'error' || imageUploads.frontIdImage.status === 'stale'"
+                  (click)="uploadSelectedImage('frontIdImage')"
+                >رفع الصورة</button>
+                <span class="upload-status__uploading" *ngIf="imageUploads.frontIdImage.status === 'uploading'">جاري رفع الصورة...</span>
+                <span class="upload-status__success" *ngIf="imageUploads.frontIdImage.status === 'uploaded'">✓ تم رفع الصورة بنجاح</span>
+                <small class="error" *ngIf="imageUploads.frontIdImage.status === 'stale'">تم تغيير الاسم، برجاء إعادة رفع الصورة</small>
+                <small class="error" *ngIf="imageUploads.frontIdImage.status === 'error' && imageUploads.frontIdImage.errorMessage">{{ imageUploads.frontIdImage.errorMessage }}</small>
+              </div>
+            </ng-container>
+
             <small class="error" *ngIf="errorFor('frontIdImage')">{{ errorFor('frontIdImage') }}</small>
           </div>
 
           <div class="upload-box">
             <span class="upload-box__label">صورة البطاقة الخلفية <span class="required">*</span></span>
-            <div class="upload-box__area">
-              <img *ngIf="previews.backIdImage" [src]="previews.backIdImage" alt="معاينة صورة البطاقة الخلفية">
-              <label class="upload-box__cta" *ngIf="!previews.backIdImage">
-                <input type="file" accept="image/png,image/jpeg,image/webp" (change)="onFileSelected($event, 'backIdImage')" hidden>
-                اختر صورة
-              </label>
-            </div>
-            <div class="upload-box__actions" *ngIf="previews.backIdImage">
-              <label class="btn btn--ghost btn--sm">
-                تغيير الصورة
-                <input type="file" accept="image/png,image/jpeg,image/webp" (change)="onFileSelected($event, 'backIdImage')" hidden>
-              </label>
-              <button type="button" class="btn btn--danger-ghost btn--sm" (click)="removeImage('backIdImage')">إزالة</button>
-            </div>
+
+            <small class="hint" *ngIf="!isFullNameReady">{{ fullNameGateMessage }}</small>
+
+            <ng-container *ngIf="isFullNameReady">
+              <div class="upload-box__area">
+                <img *ngIf="previews.backIdImage" [src]="previews.backIdImage" alt="معاينة صورة البطاقة الخلفية">
+                <label class="upload-box__cta" *ngIf="!previews.backIdImage">
+                  <input type="file" accept="image/png,image/jpeg,image/webp" (change)="onFileSelected($event, 'backIdImage')" hidden>
+                  اختر صورة
+                </label>
+              </div>
+              <div class="upload-box__actions" *ngIf="previews.backIdImage">
+                <label class="btn btn--ghost btn--sm">
+                  تغيير الصورة
+                  <input type="file" accept="image/png,image/jpeg,image/webp" (change)="onFileSelected($event, 'backIdImage')" hidden>
+                </label>
+                <button type="button" class="btn btn--danger-ghost btn--sm" (click)="removeImage('backIdImage')">إزالة</button>
+              </div>
+
+              <div class="upload-status" *ngIf="previews.backIdImage">
+                <button
+                  type="button"
+                  class="btn btn--primary btn--sm"
+                  *ngIf="imageUploads.backIdImage.status === 'idle' || imageUploads.backIdImage.status === 'error' || imageUploads.backIdImage.status === 'stale'"
+                  (click)="uploadSelectedImage('backIdImage')"
+                >رفع الصورة</button>
+                <span class="upload-status__uploading" *ngIf="imageUploads.backIdImage.status === 'uploading'">جاري رفع الصورة...</span>
+                <span class="upload-status__success" *ngIf="imageUploads.backIdImage.status === 'uploaded'">✓ تم رفع الصورة بنجاح</span>
+                <small class="error" *ngIf="imageUploads.backIdImage.status === 'stale'">تم تغيير الاسم، برجاء إعادة رفع الصورة</small>
+                <small class="error" *ngIf="imageUploads.backIdImage.status === 'error' && imageUploads.backIdImage.errorMessage">{{ imageUploads.backIdImage.errorMessage }}</small>
+              </div>
+            </ng-container>
+
             <small class="error" *ngIf="errorFor('backIdImage')">{{ errorFor('backIdImage') }}</small>
           </div>
         </div>
@@ -324,7 +381,10 @@
       <!-- SECTION 10: Personal photo -->
       <section class="section">
         <h2 class="section__title"><span class="section__badge">08</span> الصورة الشخصية</h2>
-        <div class="personal-photo">
+
+        <small class="hint" *ngIf="!isFullNameReady">{{ fullNameGateMessage }}</small>
+
+        <div class="personal-photo" *ngIf="isFullNameReady">
           <div class="personal-photo__circle">
             <img *ngIf="previews.personalPhoto" [src]="previews.personalPhoto" alt="معاينة الصورة الشخصية">
             <span *ngIf="!previews.personalPhoto" class="personal-photo__placeholder">＋</span>
@@ -333,6 +393,20 @@
             {{ previews.personalPhoto ? 'تغيير الصورة' : 'رفع صورة شخصية' }}
             <input type="file" accept="image/png,image/jpeg,image/webp" (change)="onFileSelected($event, 'personalPhoto')" hidden>
           </label>
+
+          <div class="upload-status" *ngIf="previews.personalPhoto">
+            <button
+              type="button"
+              class="btn btn--ghost btn--sm"
+              *ngIf="imageUploads.personalPhoto.status === 'idle' || imageUploads.personalPhoto.status === 'error' || imageUploads.personalPhoto.status === 'stale'"
+              (click)="uploadSelectedImage('personalPhoto')"
+            >رفع الصورة</button>
+            <span class="upload-status__uploading" *ngIf="imageUploads.personalPhoto.status === 'uploading'">جاري رفع الصورة...</span>
+            <span class="upload-status__success" *ngIf="imageUploads.personalPhoto.status === 'uploaded'">✓ تم رفع الصورة بنجاح</span>
+            <small class="error" *ngIf="imageUploads.personalPhoto.status === 'stale'">تم تغيير الاسم، برجاء إعادة رفع الصورة</small>
+            <small class="error" *ngIf="imageUploads.personalPhoto.status === 'error' && imageUploads.personalPhoto.errorMessage">{{ imageUploads.personalPhoto.errorMessage }}</small>
+          </div>
+
           <small class="error" *ngIf="errorFor('personalPhoto')">{{ errorFor('personalPhoto') }}</small>
         </div>
       </section>

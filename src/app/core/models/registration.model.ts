@@ -88,6 +88,8 @@ export interface Room {
  */
 export interface Registration {
   Id?: string;
+  /** Human-readable sequential registration number, reserved server-side before the first image upload. */
+  SerialNo?: number;
   FirstName: string;
   SecondName: string;
   ThirdName: string;
@@ -156,8 +158,10 @@ export interface Registration {
 }
 
 /**
- * Payload shape sent to the backend for an image field.
- * The Angular app converts a File to Base64 before sending.
+ * Payload shape produced by fileToUploadPayload() (a File converted to
+ * Base64) - used as the request body for the independent "uploadImage"
+ * action. Never sent as part of RegistrationSubmitPayload anymore; images
+ * are uploaded separately, well before the final "create" call.
  */
 export interface ImageUploadPayload {
   fileName: string;
@@ -167,24 +171,38 @@ export interface ImageUploadPayload {
 
 /**
  * Data shape posted to the "create"/"update" actions.
- * Image fields carry the raw upload payload only when a new file was chosen;
- * omit them (or leave undefined) to keep the existing stored image on update.
+ *
+ * Images are NOT sent here anymore - they're uploaded independently via the
+ * "uploadImage" action (see RegistrationApiService.uploadImage) before this
+ * payload is ever built. This carries only the resulting file references
+ * (FrontIdFileId/FrontIdFileUrl/etc, already present on Registration) plus
+ * the client-generated Id and server-reserved SerialNo established during
+ * that upload phase.
  */
-export interface RegistrationSubmitPayload extends Omit<
-  Registration,
-  'FrontIdFileId' | 'FrontIdFileUrl' | 'BackIdFileId' | 'BackIdFileUrl' | 'PersonalPhotoFileId' | 'PersonalPhotoFileUrl'
-> {
-  FrontIdImage?: ImageUploadPayload;
-  BackIdImage?: ImageUploadPayload;
-  PersonalPhotoImage?: ImageUploadPayload;
-  // New file chosen for the car-license uploader; CarLicense (inherited from
-  // Registration) carries the existing URL forward when no new file is chosen.
-  CarLicenseImage?: ImageUploadPayload;
-  // Preserve existing URLs/IDs when editing without replacing an image.
-  FrontIdFileId?: string;
-  FrontIdFileUrl?: string;
-  BackIdFileId?: string;
-  BackIdFileUrl?: string;
-  PersonalPhotoFileId?: string;
-  PersonalPhotoFileUrl?: string;
+export type RegistrationSubmitPayload = Registration;
+
+/** Request body for the "uploadImage" action - one image at a time, independent of final submission. */
+export type UploadImageType = 'Front' | 'Back' | 'Personal' | 'CarLicense';
+
+export interface UploadImageRequest {
+  RegistrationId: string;
+  SerialNo: number;
+  FullName: string;
+  ImageType: UploadImageType;
+  fileName: string;
+  mimeType: string;
+  base64Data: string;
+}
+
+/** Response payload for a successful "uploadImage" call. */
+export interface UploadImageResult {
+  fileId: string;
+  fileUrl: string;
+  imageType: UploadImageType;
+}
+
+/** Response payload for a successful "reserveSerialNo" call. */
+export interface ReserveSerialNoResult {
+  serialNo: number;
+  registrationId: string;
 }

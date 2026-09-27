@@ -53,6 +53,14 @@ function doPost(e) {
       return jsonOutput_(recordAttendance(body.id));
     }
 
+    if (action === 'reserveSerialNo') {
+      return jsonOutput_(reserveSerialNo(data));
+    }
+
+    if (action === 'uploadImage') {
+      return jsonOutput_(uploadImageAction(data));
+    }
+
     return jsonOutput_(createApiResponse(false, 'إجراء غير معروف', null));
   } catch (err) {
     return jsonOutput_(createApiResponse(false, 'حدث خطأ في الخادم: ' + err.message, null));
@@ -112,7 +120,11 @@ function createRegistration(data) {
   const now = new Date().toISOString();
   const isCarScenario = isCarScenario_(data.AttendanceDays, data.TransportationType);
   const record = {
-    Id: Utilities.getUuid(),
+    // Id/SerialNo are now established BEFORE this call, during the
+    // independent image-upload phase (see reserveSerialNo/uploadImageAction) -
+    // validateRegistration() above already confirmed both are present/valid.
+    Id: data.Id,
+    SerialNo: Number(data.SerialNo),
     FirstName: data.FirstName,
     SecondName: data.SecondName,
     ThirdName: data.ThirdName,
@@ -149,14 +161,20 @@ function createRegistration(data) {
     RoomId: roomId === null ? '' : roomId,
     CarNo: isCarScenario ? String(data.CarNo || '').trim() : '',
     CarLicenseNumber: data.TransportationType === 'Private Car' ? String(data.CarLicenseNumber || '').trim() : '',
-    CarLicense: '',
+    // Images are uploaded independently BEFORE this call (see
+    // uploadImageAction) - this create request only ever receives already-
+    // uploaded file references, never Base64 image data.
+    FrontIdFileId: data.FrontIdFileId || '',
+    FrontIdFileUrl: data.FrontIdFileUrl || '',
+    BackIdFileId: data.BackIdFileId || '',
+    BackIdFileUrl: data.BackIdFileUrl || '',
+    PersonalPhotoFileId: data.PersonalPhotoFileId || '',
+    PersonalPhotoFileUrl: data.PersonalPhotoFileUrl || '',
+    CarLicense: isCarScenario ? (data.CarLicense || '') : '',
     ReceiptTransferImage: '',
     CreatedAt: now,
     UpdatedAt: now
   };
-
-  attachUploadedImages_(record, data);
-  attachCarLicenseImage_(record, data, null, isCarScenario);
 
   const appendStart = Date.now();
   sheet.appendRow(registrationToRow_(record, headerMap));
@@ -237,6 +255,10 @@ function updateRegistration(data) {
 
   const record = {
     Id: data.Id,
+    // SerialNo is established once at creation time and never re-assigned by
+    // an update - carried forward untouched, same pattern as PaymentMethod/
+    // AccommodationFamilyMemberId below.
+    SerialNo: existingRecord.SerialNo || '',
     FirstName: data.FirstName,
     SecondName: data.SecondName,
     ThirdName: data.ThirdName,
@@ -476,4 +498,115 @@ function recordAttendance(rawId) {
   } finally {
     lock.releaseLock();
   }
+}
+
+/**
+ * Reserves the next human-readable SerialNo for a registration attempt,
+ * called lazily the first time the person actually tries to upload an image
+ * (not on page load - see registration.component.ts). The RegistrationId
+ * (client-generated UUID) is the real association key everywhere else;
+ * SerialNo is used only to build readable image filenames and, once the
+ * registration is created, is stored on the Registeration row too.
+ *
+ * Concurrency-safe: a single incrementing counter in ScriptProperties,
+ * guarded by a script lock, so two people uploading at the same instant can
+ * never receive the same SerialNo. Deliberately NOT `sheet.getLastRow() + 1`,
+ * which both races under concurrent access and can be thrown off by future
+ * row deletions.
+ */
+function reserveSerialNo(data) {
+  if (!data || !data.RegistrationId || !isValidUuid_(data.RegistrationId)) {
+    return createApiResponse(false, 'معرف التسجيل غير صالح', null);
+  }
+
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(10000);
+  } catch (err) {
+    return createApiResponse(false, 'الخادم مشغول، يرجى المحاولة مرة أخرى', null);
+  }
+
+  try {
+    const props = PropertiesService.getScriptProperties();
+    const current = Number(props.getProperty(CONFIG.SERIAL_NO_PROPERTY_KEY) || '0');
+    const next = current + 1;
+    props.setProperty(CONFIG.SERIAL_NO_PROPERTY_KEY, String(next));
+    return createApiResponse(true, 'تم الحجز بنجاح', { serialNo: next, registrationId: data.RegistrationId });
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/**
+ * Uploads a single image independently of final registration submission -
+ * the new architecture's core building block. Called once per image
+ * (صورة البطاقة الأمامية / الخلفية / الصورة الشخصية / صورة الرخصة) as soon as
+ * the person picks a file and clicks "رفع الصورة", well before "إرسال".
+ *
+ * Every upload is logged in UploadLog keyed by RegistrationId+ImageType, so
+ * replacing an image (re-upload for the same slot) updates that same row
+ * and trashes the previous Drive file, rather than accumulating duplicates.
+ *
+ * The final createRegistration() call never uploads images itself anymore -
+ * it only ever receives the file references this action already produced.
+ */
+function uploadImageAction(data) {
+  if (!data) {
+    return createApiResponse(false, 'لا توجد بيانات مرسلة', null);
+  }
+  if (!data.RegistrationId || !isValidUuid_(data.RegistrationId)) {
+    return createApiResponse(false, 'معرف التسجيل غير صالح', null);
+  }
+  const serialNoValue = Number(data.SerialNo);
+  if (!data.SerialNo || isNaN(serialNoValue) || serialNoValue <= 0) {
+    return createApiResponse(false, 'الرقم التسلسلي غير صالح', null);
+  }
+
+  const folderByImageType = {
+    Front: CONFIG.FRONT_ID_FOLDER_ID,
+    Back: CONFIG.BACK_ID_FOLDER_ID,
+    Personal: CONFIG.PERSONAL_PHOTO_FOLDER_ID,
+    CarLicense: CONFIG.CAR_LICENSE_FOLDER_ID
+  };
+  const folderId = folderByImageType[data.ImageType];
+  if (!folderId) {
+    return createApiResponse(false, 'نوع الصورة غير معروف', null);
+  }
+  if (!data.base64Data) {
+    return createApiResponse(false, 'لا توجد بيانات صورة', null);
+  }
+
+  const uploadLogSheet = getUploadLogSheet_();
+  const existingLogRow = findUploadLogRow_(uploadLogSheet, data.RegistrationId, data.ImageType);
+
+  // Replacing an already-uploaded image for this slot - trash the old Drive
+  // file first so re-uploads never leave duplicate permanent copies behind.
+  if (existingLogRow && existingLogRow.fileId) {
+    tryDeleteFile_(existingLogRow.fileId);
+  }
+
+  let uploaded;
+  let fileName;
+  try {
+    fileName = buildUploadFileName_(data.SerialNo, data.FullName, data.ImageType, data.fileName);
+    uploaded = uploadImage(data.base64Data, fileName, data.mimeType, folderId);
+  } catch (err) {
+    return createApiResponse(false, err.message, null);
+  }
+
+  upsertUploadLogRow_(uploadLogSheet, existingLogRow, {
+    registrationId: data.RegistrationId,
+    serialNo: data.SerialNo,
+    imageType: data.ImageType,
+    fileId: uploaded.fileId,
+    fileUrl: uploaded.fileUrl,
+    fileName: fileName,
+    status: 'uploaded'
+  });
+
+  return createApiResponse(true, 'تم رفع الصورة بنجاح', {
+    fileId: uploaded.fileId,
+    fileUrl: uploaded.fileUrl,
+    imageType: data.ImageType
+  });
 }

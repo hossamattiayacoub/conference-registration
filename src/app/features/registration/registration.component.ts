@@ -17,7 +17,8 @@ import {
   Registration,
   RegistrationSubmitPayload,
   Room,
-  TRANSPORTATION_TYPE_OPTIONS
+  TRANSPORTATION_TYPE_OPTIONS,
+  UploadImageType
 } from '../../core/models/registration.model';
 import { arabicTextValidator } from '../../shared/validators/arabic-text.validator';
 import { egyptianMobileValidator } from '../../shared/validators/egyptian-mobile.validator';
@@ -28,6 +29,27 @@ import { fileToUploadPayload } from '../../shared/utils/file-to-base64.util';
 import { toUserFacingApiErrorMessage } from '../../shared/utils/api-error.util';
 
 type ImageFieldKey = 'frontIdImage' | 'backIdImage' | 'personalPhoto' | 'carLicense';
+
+/** Maps each Angular image field to the backend's ImageType label used in filenames/UploadLog. */
+const IMAGE_TYPE_BY_FIELD: Record<ImageFieldKey, UploadImageType> = {
+  frontIdImage: 'Front',
+  backIdImage: 'Back',
+  personalPhoto: 'Personal',
+  carLicense: 'CarLicense'
+};
+
+type ImageUploadStatus = 'idle' | 'uploading' | 'uploaded' | 'error' | 'stale';
+
+interface ImageUploadState {
+  status: ImageUploadStatus;
+  fileId: string | null;
+  fileUrl: string | null;
+  errorMessage: string | null;
+}
+
+function createIdleImageState(): ImageUploadState {
+  return { status: 'idle', fileId: null, fileUrl: null, errorMessage: null };
+}
 
 interface AlertState {
   type: 'success' | 'error' | 'info';
@@ -80,9 +102,31 @@ export class RegistrationComponent {
     carLicense: null
   };
 
-  // Always empty now that editing is removed (registration is create-only).
-  // Kept as a stable field so buildPayload()'s spread doesn't need special-casing.
-  private existingImageRefs: Partial<Registration> = {};
+  // Independent per-image upload state (see uploadSelectedImage()). Each
+  // image is uploaded to Drive on its own, well before "إرسال" - this tracks
+  // where each one currently stands so submit() can verify all required
+  // images finished uploading, and the template can show the right status.
+  readonly imageUploads: Record<ImageFieldKey, ImageUploadState> = {
+    frontIdImage: createIdleImageState(),
+    backIdImage: createIdleImageState(),
+    personalPhoto: createIdleImageState(),
+    carLicense: createIdleImageState()
+  };
+
+  // Client-generated (crypto.randomUUID()) once per registration attempt -
+  // the SAME Id used for every image upload's association key AND the final
+  // Registeration row's Id. The backend now accepts this rather than
+  // generating its own, since images must be uploaded (and therefore
+  // associated with a stable Id) before the registration itself exists.
+  private registrationId: string = crypto.randomUUID();
+
+  // Reserved lazily - the first time an upload is actually attempted, not on
+  // page load (see ensureSerialNoReserved()). Stays fixed for the session
+  // once set, even if the person edits their name afterwards.
+  readonly serialNo = signal<number | null>(null);
+  private serialNoReservationPromise: Promise<number | null> | null = null;
+
+  readonly fullNameGateMessage = 'من فضلك أدخل الاسم أولاً';
 
   readonly form = this.fb.group({
     firstName: this.fb.control('', [Validators.required, arabicTextValidator()]),
@@ -143,6 +187,14 @@ export class RegistrationComponent {
       .valueChanges.subscribe(() => this.updateMarriedSectionValidators());
 
     this.form.get('hasWhatsApp')!.valueChanges.subscribe(() => this.updateWhatsAppValidators());
+
+    // If the person edits any name field after an image has already been
+    // uploaded (uploaded filenames are built from FullName), that upload is
+    // no longer valid for the current name - mark it stale so submit() blocks
+    // until it's re-uploaded. Drive files are never renamed/deleted here.
+    (['firstName', 'secondName', 'thirdName', 'fourthName'] as const).forEach((controlName) => {
+      this.form.get(controlName)!.valueChanges.subscribe(() => this.markUploadedImagesStale());
+    });
 
     // The attendance-days value now comes from /attendance-selection (see
     // attendanceSelectedGuard - this component never mounts without one).
@@ -278,7 +330,7 @@ export class RegistrationComponent {
       this.form.get('carNo')!.setValue('', { emitEvent: false });
       this.form.get('carLicense')!.setValue(null, { emitEvent: false });
       this.previews.carLicense = null;
-      delete this.existingImageRefs.CarLicense;
+      this.imageUploads.carLicense = createIdleImageState();
     }
     this.setCarFieldValidators(this.showCarFields);
   }
@@ -567,7 +619,67 @@ export class RegistrationComponent {
     return fieldMessages[errorKey] ?? null;
   }
 
-  /** Handles file-input change events for the three image controls. */
+  /** True once all four name fields are individually valid - gates every image upload button. */
+  get isFullNameReady(): boolean {
+    return (['firstName', 'secondName', 'thirdName', 'fourthName'] as const).every(
+      (name) => this.form.get(name)!.valid
+    );
+  }
+
+  /**
+   * Any edit to a name field while an image is already 'uploaded' invalidates
+   * that upload (its Drive filename was built from the name at upload time).
+   * The Drive file itself is left alone - only the local reference is
+   * cleared, so a stale reference can never be submitted.
+   */
+  private markUploadedImagesStale(): void {
+    (Object.keys(this.imageUploads) as ImageFieldKey[]).forEach((field) => {
+      const state = this.imageUploads[field];
+      if (state.status === 'uploaded') {
+        state.status = 'stale';
+        state.fileId = null;
+        state.fileUrl = null;
+      }
+    });
+  }
+
+  /**
+   * Reserves SerialNo exactly once per session, the first time it's actually
+   * needed (i.e. the first image upload attempt) - never on page load, so
+   * people who open the form and leave don't burn a serial number. Reuses
+   * the in-flight request if a second image upload starts before the first
+   * reservation resolves, so two near-simultaneous uploads never call
+   * reserveSerialNo twice for the same session.
+   */
+  private ensureSerialNoReserved(): Promise<number | null> {
+    const current = this.serialNo();
+    if (current !== null) {
+      return Promise.resolve(current);
+    }
+    if (this.serialNoReservationPromise) {
+      return this.serialNoReservationPromise;
+    }
+
+    this.serialNoReservationPromise = new Promise<number | null>((resolve) => {
+      this.api.reserveSerialNo(this.registrationId).subscribe({
+        next: (response) => {
+          const reserved = response.success && response.data ? response.data.serialNo : null;
+          if (reserved !== null) {
+            this.serialNo.set(reserved);
+          }
+          this.serialNoReservationPromise = null;
+          resolve(reserved);
+        },
+        error: () => {
+          this.serialNoReservationPromise = null;
+          resolve(null);
+        }
+      });
+    });
+    return this.serialNoReservationPromise;
+  }
+
+  /** Handles file-input change events for the four image controls - selecting a file does NOT upload it. */
   onFileSelected(event: Event, field: ImageFieldKey): void {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0] ?? null;
@@ -577,6 +689,10 @@ export class RegistrationComponent {
     this.form.get(field)!.setValue(file);
     this.form.get(field)!.markAsTouched();
 
+    // A newly selected file has not been uploaded yet - reset this slot's
+    // upload state so the "رفع الصورة" action becomes available again.
+    this.imageUploads[field] = createIdleImageState();
+
     const reader = new FileReader();
     reader.onload = () => {
       this.previews[field] = reader.result as string;
@@ -584,22 +700,82 @@ export class RegistrationComponent {
     reader.readAsDataURL(file);
   }
 
+  /**
+   * Uploads the currently-selected file for one image field, independently
+   * of final registration submission. Does nothing if the FullName gate is
+   * closed, nothing is selected yet, or an upload for this slot is already
+   * in flight (prevents duplicate uploads from a double-click).
+   */
+  async uploadSelectedImage(field: ImageFieldKey): Promise<void> {
+    if (!this.isFullNameReady) {
+      return;
+    }
+    const file = this.form.get(field)!.value;
+    if (!(file instanceof File)) {
+      return;
+    }
+
+    const state = this.imageUploads[field];
+    if (state.status === 'uploading') {
+      return;
+    }
+
+    state.status = 'uploading';
+    state.errorMessage = null;
+
+    const serialNo = await this.ensureSerialNoReserved();
+    if (serialNo === null) {
+      state.status = 'error';
+      state.errorMessage = 'تعذر حجز الرقم التسلسلي، برجاء المحاولة مرة أخرى';
+      return;
+    }
+
+    let uploadPayload;
+    try {
+      uploadPayload = await fileToUploadPayload(file);
+    } catch {
+      state.status = 'error';
+      state.errorMessage = 'تعذرت معالجة الصورة';
+      return;
+    }
+
+    const raw = this.form.getRawValue();
+    const fullName = [raw.firstName, raw.secondName, raw.thirdName, raw.fourthName].join(' ').trim();
+
+    this.api
+      .uploadImage({
+        RegistrationId: this.registrationId,
+        SerialNo: serialNo,
+        FullName: fullName,
+        ImageType: IMAGE_TYPE_BY_FIELD[field],
+        fileName: uploadPayload.fileName,
+        mimeType: uploadPayload.mimeType,
+        base64Data: uploadPayload.base64Data
+      })
+      .subscribe({
+        next: (response) => {
+          if (response.success && response.data) {
+            state.status = 'uploaded';
+            state.fileId = response.data.fileId;
+            state.fileUrl = response.data.fileUrl;
+            state.errorMessage = null;
+          } else {
+            state.status = 'error';
+            state.errorMessage = response.message || 'تعذر رفع الصورة';
+          }
+        },
+        error: (err) => {
+          state.status = 'error';
+          state.errorMessage = toUserFacingApiErrorMessage(err, 'تعذر رفع الصورة، برجاء المحاولة مرة أخرى');
+        }
+      });
+  }
+
   removeImage(field: ImageFieldKey): void {
     this.form.get(field)!.setValue(null);
     this.form.get(field)!.markAsTouched();
     this.previews[field] = null;
-    if (field === 'frontIdImage') {
-      delete this.existingImageRefs.FrontIdFileId;
-      delete this.existingImageRefs.FrontIdFileUrl;
-    } else if (field === 'backIdImage') {
-      delete this.existingImageRefs.BackIdFileId;
-      delete this.existingImageRefs.BackIdFileUrl;
-    } else if (field === 'personalPhoto') {
-      delete this.existingImageRefs.PersonalPhotoFileId;
-      delete this.existingImageRefs.PersonalPhotoFileUrl;
-    } else {
-      delete this.existingImageRefs.CarLicense;
-    }
+    this.imageUploads[field] = createIdleImageState();
   }
 
   async submit(): Promise<void> {
@@ -621,46 +797,72 @@ export class RegistrationComponent {
       return;
     }
 
-    this.isSubmitting.set(true);
-    try {
-      const payloadStart = performance.now();
-      const payload = await this.buildPayload();
-      console.log('[perf] Payload preparation: ' + (performance.now() - payloadStart).toFixed(0) + ' ms');
-
-      this.api
-        .createRegistration(payload)
-        .pipe(finalize(() => this.isSubmitting.set(false)))
-        .subscribe({
-          next: (response) => {
-            console.log('[perf] Total (client, click\u2192response): ' + (performance.now() - perfStart).toFixed(0) + ' ms');
-            if (response.success && response.data?.Id) {
-              // New registration created - hand off to the dedicated success
-              // page with the backend-generated Id (never a client-made one).
-              this.attendanceSelection.clear(); // Next registration must choose attendance again.
-              this.router.navigate(['/registration-success'], {
-                state: { registrationId: response.data.Id }
-              });
-            } else if (response.success) {
-              this.alert.set({ type: 'success', message: 'تم إرسال التسجيل بنجاح' });
-              this.resetForm();
-            } else {
-              // Includes the existing server-side duplicate-mobile rejection -
-              // shown as a plain error, with no way to load/edit that record.
-              this.alert.set({ type: 'error', message: response.message || 'حدث خطأ أثناء الإرسال' });
-            }
-          },
-          error: (err) => {
-            console.log('[perf] Total (client, click\u2192error): ' + (performance.now() - perfStart).toFixed(0) + ' ms');
-            this.alert.set({ type: 'error', message: toUserFacingApiErrorMessage(err) });
-          }
-        });
-    } catch {
-      this.isSubmitting.set(false);
-      this.alert.set({ type: 'error', message: 'تعذرت معالجة الصور المرفقة' });
+    const missingImagesMessage = this.getMissingRequiredImagesMessage();
+    if (missingImagesMessage) {
+      this.alert.set({ type: 'error', message: missingImagesMessage });
+      return;
     }
+
+    this.isSubmitting.set(true);
+    const payloadStart = performance.now();
+    const payload = this.buildPayload();
+    console.log('[perf] Payload preparation: ' + (performance.now() - payloadStart).toFixed(0) + ' ms');
+
+    this.api
+      .createRegistration(payload)
+      .pipe(finalize(() => this.isSubmitting.set(false)))
+      .subscribe({
+        next: (response) => {
+          console.log('[perf] Total (client, click\u2192response): ' + (performance.now() - perfStart).toFixed(0) + ' ms');
+          if (response.success && response.data?.Id) {
+            // New registration created - hand off to the dedicated success
+            // page with the SAME Id used for every image upload throughout
+            // this session (never a separately server-generated one).
+            this.attendanceSelection.clear(); // Next registration must choose attendance again.
+            this.router.navigate(['/registration-success'], {
+              state: { registrationId: response.data.Id }
+            });
+          } else if (response.success) {
+            this.alert.set({ type: 'success', message: 'تم إرسال التسجيل بنجاح' });
+            this.resetForm();
+          } else {
+            // Includes the existing server-side duplicate-mobile rejection -
+            // shown as a plain error, with no way to load/edit that record.
+            this.alert.set({ type: 'error', message: response.message || 'حدث خطأ أثناء الإرسال' });
+          }
+        },
+        error: (err) => {
+          console.log('[perf] Total (client, click\u2192error): ' + (performance.now() - perfStart).toFixed(0) + ' ms');
+          this.alert.set({ type: 'error', message: toUserFacingApiErrorMessage(err) });
+        }
+      });
   }
 
-  private async buildPayload(): Promise<RegistrationSubmitPayload> {
+  /**
+   * Checks that every currently-required image reports status 'uploaded' -
+   * 'idle'/'error'/'stale' all block submission the same way 'missing' does.
+   * Returns null when everything required is ready, or a single combined
+   * Arabic message naming which image(s) still need attention.
+   */
+  private getMissingRequiredImagesMessage(): string | null {
+    const requiredFields: { field: ImageFieldKey; label: string }[] = [
+      { field: 'frontIdImage', label: 'صورة البطاقة الأمامية' },
+      { field: 'backIdImage', label: 'صورة البطاقة الخلفية' },
+      { field: 'personalPhoto', label: 'الصورة الشخصية' }
+    ];
+    if (this.showCarFields) {
+      requiredFields.push({ field: 'carLicense', label: 'صورة الرخصة' });
+    }
+
+    const missing = requiredFields.filter(({ field }) => this.imageUploads[field].status !== 'uploaded');
+    if (missing.length === 0) {
+      return null;
+    }
+    const labels = missing.map(({ label }) => label).join('، ');
+    return `يرجى رفع الصور المطلوبة قبل إرسال التسجيل: ${labels}`;
+  }
+
+  private buildPayload(): RegistrationSubmitPayload {
     const raw = this.form.getRawValue();
     const fullName = [raw.firstName, raw.secondName, raw.thirdName, raw.fourthName].join(' ').trim();
     const isTransportationVisible =
@@ -668,6 +870,11 @@ export class RegistrationComponent {
     const isCarScenario = raw.attendanceDays === 'يوم واحد بدون مواصلات' && raw.transportationType === 'Private Car';
 
     const payload: RegistrationSubmitPayload = {
+      // The exact same Id used for every image upload throughout this
+      // session, and the SerialNo reserved (server-side, concurrency-safe)
+      // the first time an upload was attempted - never regenerated here.
+      Id: this.registrationId,
+      SerialNo: this.serialNo() ?? undefined,
       FirstName: raw.firstName!,
       SecondName: raw.secondName!,
       ThirdName: raw.thirdName!,
@@ -699,21 +906,17 @@ export class RegistrationComponent {
         raw.marriedAndYourSpousebookInConference === 'لا' && raw.hasFriendsForAccommodation === 'نعم'
           ? raw.roomId ?? null
           : null,
-      ...this.existingImageRefs
+      // Images are never sent as Base64 here - each was already uploaded
+      // independently (see uploadSelectedImage()); this only carries the
+      // file references that upload already produced.
+      FrontIdFileId: this.imageUploads.frontIdImage.fileId ?? '',
+      FrontIdFileUrl: this.imageUploads.frontIdImage.fileUrl ?? '',
+      BackIdFileId: this.imageUploads.backIdImage.fileId ?? '',
+      BackIdFileUrl: this.imageUploads.backIdImage.fileUrl ?? '',
+      PersonalPhotoFileId: this.imageUploads.personalPhoto.fileId ?? '',
+      PersonalPhotoFileUrl: this.imageUploads.personalPhoto.fileUrl ?? '',
+      CarLicense: isCarScenario ? this.imageUploads.carLicense.fileUrl ?? '' : ''
     };
-
-    if (raw.frontIdImage instanceof File) {
-      payload.FrontIdImage = await fileToUploadPayload(raw.frontIdImage);
-    }
-    if (raw.backIdImage instanceof File) {
-      payload.BackIdImage = await fileToUploadPayload(raw.backIdImage);
-    }
-    if (raw.personalPhoto instanceof File) {
-      payload.PersonalPhotoImage = await fileToUploadPayload(raw.personalPhoto);
-    }
-    if (isCarScenario && raw.carLicense instanceof File) {
-      payload.CarLicenseImage = await fileToUploadPayload(raw.carLicense);
-    }
 
     return payload;
   }
@@ -752,7 +955,17 @@ export class RegistrationComponent {
     this.previews.backIdImage = null;
     this.previews.personalPhoto = null;
     this.previews.carLicense = null;
-    this.existingImageRefs = {};
+
+    // A manual reset starts an entirely fresh session: new RegistrationId,
+    // a SerialNo to be re-reserved on the next upload attempt, and every
+    // image's upload state back to idle - never reusing an
+    // abandoned-attempt's identifiers.
+    this.registrationId = crypto.randomUUID();
+    this.serialNo.set(null);
+    this.serialNoReservationPromise = null;
+    (Object.keys(this.imageUploads) as ImageFieldKey[]).forEach((field) => {
+      this.imageUploads[field] = createIdleImageState();
+    });
 
     // The reset above blanks attendanceDays, but this page no longer offers
     // a way to re-pick it (that only happens on /attendance-selection now) -

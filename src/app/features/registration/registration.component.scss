@@ -420,6 +420,26 @@
   }
 }
 
+/* Per-image upload action/status (رفع الصورة button, uploading/uploaded/stale states) */
+.upload-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+
+  &__uploading {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--color-text-muted);
+  }
+
+  &__success {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--color-success);
+  }
+}
+
 /* ---------- Personal photo (circular) ---------- */
 .personal-photo {
   display: flex;
