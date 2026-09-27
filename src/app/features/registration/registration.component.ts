@@ -1,4 +1,5 @@
 import { CommonModule } from '@angular/common';
+import { HttpEventType } from '@angular/common/http';
 import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
@@ -45,10 +46,12 @@ interface ImageUploadState {
   fileId: string | null;
   fileUrl: string | null;
   errorMessage: string | null;
+  /** Real upload progress (0-100) from actual bytes sent over the request - never a fake/timer-based value. null when not currently measurable. */
+  progress: number | null;
 }
 
 function createIdleImageState(): ImageUploadState {
-  return { status: 'idle', fileId: null, fileUrl: null, errorMessage: null };
+  return { status: 'idle', fileId: null, fileUrl: null, errorMessage: null, progress: null };
 }
 
 interface AlertState {
@@ -588,7 +591,7 @@ export class RegistrationComponent {
         invalidImageType: 'صيغة الصورة غير مدعومة (JPG, PNG, WEBP فقط)',
         imageTooLarge: 'حجم الصورة أكبر من 10 ميجابايت'
       },
-      servantName: { required: 'الخادم مطلوب' },
+      servantName: { required: 'من فضلك اختر الخادم المسؤول' },
       roomId: { required: 'التسكين مطلوب' },
       hasFriendsForAccommodation: { required: 'اختيار التسكين مع الأصدقاء مطلوب' },
       frontIdImage: {
@@ -680,6 +683,7 @@ export class RegistrationComponent {
   }
 
   /** Handles file-input change events for the four image controls - selecting a file does NOT upload it. */
+  /** Handles file-input change events for the four image controls - selecting a file now auto-starts its upload (no separate "رفع الصورة" button). */
   onFileSelected(event: Event, field: ImageFieldKey): void {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0] ?? null;
@@ -690,7 +694,7 @@ export class RegistrationComponent {
     this.form.get(field)!.markAsTouched();
 
     // A newly selected file has not been uploaded yet - reset this slot's
-    // upload state so the "رفع الصورة" action becomes available again.
+    // upload state before immediately starting the upload below.
     this.imageUploads[field] = createIdleImageState();
 
     const reader = new FileReader();
@@ -698,13 +702,18 @@ export class RegistrationComponent {
       this.previews[field] = reader.result as string;
     };
     reader.readAsDataURL(file);
+
+    // Auto-upload immediately - selecting (or replacing) an image is the
+    // only action needed; there is no separate "رفع الصورة" button.
+    void this.uploadSelectedImage(field);
   }
 
   /**
    * Uploads the currently-selected file for one image field, independently
    * of final registration submission. Does nothing if the FullName gate is
    * closed, nothing is selected yet, or an upload for this slot is already
-   * in flight (prevents duplicate uploads from a double-click).
+   * in flight (prevents starting a second upload for the same field while
+   * one is already running).
    */
   async uploadSelectedImage(field: ImageFieldKey): Promise<void> {
     if (!this.isFullNameReady) {
@@ -722,11 +731,13 @@ export class RegistrationComponent {
 
     state.status = 'uploading';
     state.errorMessage = null;
+    state.progress = 0;
 
     const serialNo = await this.ensureSerialNoReserved();
     if (serialNo === null) {
       state.status = 'error';
       state.errorMessage = 'تعذر حجز الرقم التسلسلي، برجاء المحاولة مرة أخرى';
+      state.progress = null;
       return;
     }
 
@@ -736,6 +747,7 @@ export class RegistrationComponent {
     } catch {
       state.status = 'error';
       state.errorMessage = 'تعذرت معالجة الصورة';
+      state.progress = null;
       return;
     }
 
@@ -753,20 +765,33 @@ export class RegistrationComponent {
         base64Data: uploadPayload.base64Data
       })
       .subscribe({
-        next: (response) => {
-          if (response.success && response.data) {
+        next: (event) => {
+          // Real progress from actual bytes sent over the XHR request -
+          // never a fake/timer-based percentage.
+          if (event.type === HttpEventType.UploadProgress) {
+            state.progress = event.total ? Math.round((event.loaded / event.total) * 100) : null;
+            return;
+          }
+          if (event.type !== HttpEventType.Response) {
+            return;
+          }
+          const response = event.body;
+          if (response?.success && response.data) {
             state.status = 'uploaded';
             state.fileId = response.data.fileId;
             state.fileUrl = response.data.fileUrl;
             state.errorMessage = null;
+            state.progress = 100;
           } else {
             state.status = 'error';
-            state.errorMessage = response.message || 'تعذر رفع الصورة';
+            state.errorMessage = response?.message || 'تعذر رفع الصورة';
+            state.progress = null;
           }
         },
         error: (err) => {
           state.status = 'error';
           state.errorMessage = toUserFacingApiErrorMessage(err, 'تعذر رفع الصورة، برجاء المحاولة مرة أخرى');
+          state.progress = null;
         }
       });
   }

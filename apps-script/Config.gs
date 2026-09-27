@@ -18,7 +18,7 @@ const CONFIG = {
   // The Rooms sheet lives in the same spreadsheet and already exists with
   // its own headers - we only read from it, never create/modify its schema.
   ROOMS_SHEET_NAME: 'Rooms',
-  ROOMS_HEADERS: ['Id', 'Name', 'Capacity', 'Gender', 'Description'],
+  ROOMS_HEADERS: ['Id', 'Name', 'Capacity', 'Gender', 'Description', 'IsAvailable'],
 
   // AttendanceList sheet - already exists in the same spreadsheet. Written
   // to only by recordAttendance() (QR attendance scanner). Single column:

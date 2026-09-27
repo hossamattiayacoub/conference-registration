@@ -195,7 +195,7 @@ function validateRegistration(data, isUpdate) {
     ['Gender', 'النوع مطلوب'],
     ['Diocese', 'الأبرشية مطلوبة'],
     ['AttendanceDays', 'أيام الحضور مطلوبة'],
-    ['ServantName', 'الخادم مطلوب'],
+    ['ServantName', 'من فضلك اختر الخادم المسؤول'],
     ['NationalId', 'الرقم القومي مطلوب']
   ];
 
@@ -491,7 +491,16 @@ function getRoomsSheet_() {
 }
 
 /**
- * Reads every row of the Rooms sheet into { id, name, capacity, gender, description } objects.
+ * Robustly interprets the Rooms sheet's IsAvailable column. Only the
+ * literal values 1 (number) or "1" (string) count as available - 0, "0",
+ * empty, missing, or any other value is treated as NOT available.
+ */
+function isRoomAvailableValue_(rawValue) {
+  return rawValue === 1 || rawValue === '1';
+}
+
+/**
+ * Reads every row of the Rooms sheet into { id, name, capacity, gender, description, isAvailable } objects.
  * Rows with an empty/invalid Id are skipped.
  */
 function readRoomsRaw_() {
@@ -518,7 +527,9 @@ function readRoomsRaw_() {
       name: headerMap.Name !== undefined ? String(row[headerMap.Name] || '') : '',
       capacity: headerMap.Capacity !== undefined ? Number(row[headerMap.Capacity]) || 0 : 0,
       gender: headerMap.Gender !== undefined ? String(row[headerMap.Gender] || '') : '',
-      description: headerMap.Description !== undefined ? String(row[headerMap.Description] || '') : ''
+      description: headerMap.Description !== undefined ? String(row[headerMap.Description] || '') : '',
+      // Missing column, empty cell, or any value other than 1/"1" -> not available.
+      isAvailable: headerMap.IsAvailable !== undefined ? isRoomAvailableValue_(row[headerMap.IsAvailable]) : false
     });
   }
   return rooms;
@@ -621,7 +632,11 @@ function calculateRoomOccupancy_(excludeRegistrationId) {
  * (used in edit mode - see calculateRoomOccupancy_).
  */
 function getRoomsWithAvailability_(excludeRegistrationId) {
-  const rooms = readRoomsRaw_();
+  // Server-side filter: rooms with IsAvailable != 1 are excluded entirely -
+  // never sent to Angular at all, not just disabled in the dropdown.
+  const rooms = readRoomsRaw_().filter(function (room) {
+    return room.isAvailable;
+  });
   const occupancy = calculateRoomOccupancy_(excludeRegistrationId);
   const occupantNames = collectRoomOccupantNames_(excludeRegistrationId);
   return rooms.map(function (room) {
@@ -644,7 +659,10 @@ function getRoomsWithAvailability_(excludeRegistrationId) {
 /**
  * Server-side capacity check performed again right before create/update, so
  * two people submitting at the same time can't both take the last space.
- * Returns { valid: boolean, message: string }.
+ * Also re-verifies IsAvailable at submission time (not just at page-load
+ * time) - covers both a manually-submitted RoomId that was never available,
+ * and a room that became unavailable after the page loaded but before this
+ * request arrived. Returns { valid: boolean, message: string }.
  */
 function validateRoomCapacity_(roomId, excludeRegistrationId) {
   const rooms = readRoomsRaw_();
@@ -653,6 +671,9 @@ function validateRoomCapacity_(roomId, excludeRegistrationId) {
   })[0];
   if (!room) {
     return { valid: false, message: 'الغرفة المحددة غير موجودة' };
+  }
+  if (!room.isAvailable) {
+    return { valid: false, message: 'هذه الغرفة غير متاحة حالياً، برجاء اختيار غرفة أخرى' };
   }
   const occupancy = calculateRoomOccupancy_(excludeRegistrationId);
   const currentOccupancy = occupancy[room.id] || 0;

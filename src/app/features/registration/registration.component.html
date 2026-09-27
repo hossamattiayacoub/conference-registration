@@ -261,13 +261,13 @@
               </div>
 
               <div class="upload-status" *ngIf="previews.carLicense">
-                <button
-                  type="button"
-                  class="btn btn--primary btn--sm"
-                  *ngIf="imageUploads.carLicense.status === 'idle' || imageUploads.carLicense.status === 'error' || imageUploads.carLicense.status === 'stale'"
-                  (click)="uploadSelectedImage('carLicense')"
-                >رفع الصورة</button>
-                <span class="upload-status__uploading" *ngIf="imageUploads.carLicense.status === 'uploading'">جاري رفع الصورة...</span>
+                <div class="upload-progress" *ngIf="imageUploads.carLicense.status === 'uploading'">
+                  <span class="upload-progress__label">جاري رفع الصورة...</span>
+                  <div class="upload-progress__bar">
+                    <div class="upload-progress__fill" [style.width.%]="imageUploads.carLicense.progress ?? 0"></div>
+                  </div>
+                  <span class="upload-progress__percent" *ngIf="imageUploads.carLicense.progress !== null">{{ imageUploads.carLicense.progress }}%</span>
+                </div>
                 <span class="upload-status__success" *ngIf="imageUploads.carLicense.status === 'uploaded'">✓ تم رفع الصورة بنجاح</span>
                 <small class="error" *ngIf="imageUploads.carLicense.status === 'stale'">تم تغيير الاسم، برجاء إعادة رفع الصورة</small>
                 <small class="error" *ngIf="imageUploads.carLicense.status === 'error' && imageUploads.carLicense.errorMessage">{{ imageUploads.carLicense.errorMessage }}</small>
@@ -322,13 +322,13 @@
               </div>
 
               <div class="upload-status" *ngIf="previews.frontIdImage">
-                <button
-                  type="button"
-                  class="btn btn--primary btn--sm"
-                  *ngIf="imageUploads.frontIdImage.status === 'idle' || imageUploads.frontIdImage.status === 'error' || imageUploads.frontIdImage.status === 'stale'"
-                  (click)="uploadSelectedImage('frontIdImage')"
-                >رفع الصورة</button>
-                <span class="upload-status__uploading" *ngIf="imageUploads.frontIdImage.status === 'uploading'">جاري رفع الصورة...</span>
+                <div class="upload-progress" *ngIf="imageUploads.frontIdImage.status === 'uploading'">
+                  <span class="upload-progress__label">جاري رفع الصورة...</span>
+                  <div class="upload-progress__bar">
+                    <div class="upload-progress__fill" [style.width.%]="imageUploads.frontIdImage.progress ?? 0"></div>
+                  </div>
+                  <span class="upload-progress__percent" *ngIf="imageUploads.frontIdImage.progress !== null">{{ imageUploads.frontIdImage.progress }}%</span>
+                </div>
                 <span class="upload-status__success" *ngIf="imageUploads.frontIdImage.status === 'uploaded'">✓ تم رفع الصورة بنجاح</span>
                 <small class="error" *ngIf="imageUploads.frontIdImage.status === 'stale'">تم تغيير الاسم، برجاء إعادة رفع الصورة</small>
                 <small class="error" *ngIf="imageUploads.frontIdImage.status === 'error' && imageUploads.frontIdImage.errorMessage">{{ imageUploads.frontIdImage.errorMessage }}</small>
@@ -360,13 +360,13 @@
               </div>
 
               <div class="upload-status" *ngIf="previews.backIdImage">
-                <button
-                  type="button"
-                  class="btn btn--primary btn--sm"
-                  *ngIf="imageUploads.backIdImage.status === 'idle' || imageUploads.backIdImage.status === 'error' || imageUploads.backIdImage.status === 'stale'"
-                  (click)="uploadSelectedImage('backIdImage')"
-                >رفع الصورة</button>
-                <span class="upload-status__uploading" *ngIf="imageUploads.backIdImage.status === 'uploading'">جاري رفع الصورة...</span>
+                <div class="upload-progress" *ngIf="imageUploads.backIdImage.status === 'uploading'">
+                  <span class="upload-progress__label">جاري رفع الصورة...</span>
+                  <div class="upload-progress__bar">
+                    <div class="upload-progress__fill" [style.width.%]="imageUploads.backIdImage.progress ?? 0"></div>
+                  </div>
+                  <span class="upload-progress__percent" *ngIf="imageUploads.backIdImage.progress !== null">{{ imageUploads.backIdImage.progress }}%</span>
+                </div>
                 <span class="upload-status__success" *ngIf="imageUploads.backIdImage.status === 'uploaded'">✓ تم رفع الصورة بنجاح</span>
                 <small class="error" *ngIf="imageUploads.backIdImage.status === 'stale'">تم تغيير الاسم، برجاء إعادة رفع الصورة</small>
                 <small class="error" *ngIf="imageUploads.backIdImage.status === 'error' && imageUploads.backIdImage.errorMessage">{{ imageUploads.backIdImage.errorMessage }}</small>
@@ -395,13 +395,13 @@
           </label>
 
           <div class="upload-status" *ngIf="previews.personalPhoto">
-            <button
-              type="button"
-              class="btn btn--ghost btn--sm"
-              *ngIf="imageUploads.personalPhoto.status === 'idle' || imageUploads.personalPhoto.status === 'error' || imageUploads.personalPhoto.status === 'stale'"
-              (click)="uploadSelectedImage('personalPhoto')"
-            >رفع الصورة</button>
-            <span class="upload-status__uploading" *ngIf="imageUploads.personalPhoto.status === 'uploading'">جاري رفع الصورة...</span>
+                <div class="upload-progress" *ngIf="imageUploads.personalPhoto.status === 'uploading'">
+                  <span class="upload-progress__label">جاري رفع الصورة...</span>
+                  <div class="upload-progress__bar">
+                    <div class="upload-progress__fill" [style.width.%]="imageUploads.personalPhoto.progress ?? 0"></div>
+                  </div>
+                  <span class="upload-progress__percent" *ngIf="imageUploads.personalPhoto.progress !== null">{{ imageUploads.personalPhoto.progress }}%</span>
+                </div>
             <span class="upload-status__success" *ngIf="imageUploads.personalPhoto.status === 'uploaded'">✓ تم رفع الصورة بنجاح</span>
             <small class="error" *ngIf="imageUploads.personalPhoto.status === 'stale'">تم تغيير الاسم، برجاء إعادة رفع الصورة</small>
             <small class="error" *ngIf="imageUploads.personalPhoto.status === 'error' && imageUploads.personalPhoto.errorMessage">{{ imageUploads.personalPhoto.errorMessage }}</small>

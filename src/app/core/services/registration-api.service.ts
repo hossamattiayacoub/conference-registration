@@ -1,4 +1,4 @@
-import { HttpClient, HttpParams } from '@angular/common/http';
+import { HttpClient, HttpEvent, HttpParams } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
@@ -81,12 +81,17 @@ export class RegistrationApiService {
    * Uploads a single image independently of final registration submission.
    * The final createRegistration() call never receives Base64 image data -
    * only the file references this returns.
+   *
+   * Returns the raw HttpEvent stream (reportProgress: true) so the caller
+   * can surface REAL upload progress (actual bytes sent over the XHR
+   * request) - never a fake/timer-based percentage. The final HttpResponse
+   * event carries the usual ApiResponse<UploadImageResult> body.
    */
-  uploadImage(request: UploadImageRequest): Observable<ApiResponse<UploadImageResult>> {
+  uploadImage(request: UploadImageRequest): Observable<HttpEvent<ApiResponse<UploadImageResult>>> {
     return this.http.post<ApiResponse<UploadImageResult>>(
       this.apiUrl,
       JSON.stringify({ action: 'uploadImage', data: request }),
-      this.postOptions
+      { ...this.postOptions, reportProgress: true, observe: 'events' }
     );
   }
 }
