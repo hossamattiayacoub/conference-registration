@@ -1,4 +1,4 @@
-import { HttpClient, HttpEvent, HttpParams } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
@@ -82,16 +82,20 @@ export class RegistrationApiService {
    * The final createRegistration() call never receives Base64 image data -
    * only the file references this returns.
    *
-   * Returns the raw HttpEvent stream (reportProgress: true) so the caller
-   * can surface REAL upload progress (actual bytes sent over the XHR
-   * request) - never a fake/timer-based percentage. The final HttpResponse
-   * event carries the usual ApiResponse<UploadImageResult> body.
+   * Deliberately a PLAIN post using the same postOptions as every other
+   * Apps Script POST (JSON string body, Content-Type: text/plain, no custom
+   * headers, NO reportProgress). reportProgress makes Angular register an
+   * xhr.upload 'progress' listener, and per the XHR spec that makes a
+   * cross-origin request non-simple - forcing a CORS preflight (OPTIONS)
+   * that Apps Script Web Apps cannot answer. Real byte-level progress and
+   * "no preflight" are mutually exclusive here, so the UI shows an
+   * indeterminate indicator instead.
    */
-  uploadImage(request: UploadImageRequest): Observable<HttpEvent<ApiResponse<UploadImageResult>>> {
+  uploadImage(request: UploadImageRequest): Observable<ApiResponse<UploadImageResult>> {
     return this.http.post<ApiResponse<UploadImageResult>>(
       this.apiUrl,
       JSON.stringify({ action: 'uploadImage', data: request }),
-      { ...this.postOptions, reportProgress: true, observe: 'events' }
+      this.postOptions
     );
   }
 }

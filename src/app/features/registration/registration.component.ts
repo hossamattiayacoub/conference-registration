@@ -1,5 +1,4 @@
 import { CommonModule } from '@angular/common';
-import { HttpEventType } from '@angular/common/http';
 import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
@@ -46,12 +45,10 @@ interface ImageUploadState {
   fileId: string | null;
   fileUrl: string | null;
   errorMessage: string | null;
-  /** Real upload progress (0-100) from actual bytes sent over the request - never a fake/timer-based value. null when not currently measurable. */
-  progress: number | null;
 }
 
 function createIdleImageState(): ImageUploadState {
-  return { status: 'idle', fileId: null, fileUrl: null, errorMessage: null, progress: null };
+  return { status: 'idle', fileId: null, fileUrl: null, errorMessage: null };
 }
 
 interface AlertState {
@@ -731,13 +728,11 @@ export class RegistrationComponent {
 
     state.status = 'uploading';
     state.errorMessage = null;
-    state.progress = 0;
 
     const serialNo = await this.ensureSerialNoReserved();
     if (serialNo === null) {
       state.status = 'error';
       state.errorMessage = 'تعذر حجز الرقم التسلسلي، برجاء المحاولة مرة أخرى';
-      state.progress = null;
       return;
     }
 
@@ -747,7 +742,6 @@ export class RegistrationComponent {
     } catch {
       state.status = 'error';
       state.errorMessage = 'تعذرت معالجة الصورة';
-      state.progress = null;
       return;
     }
 
@@ -765,33 +759,20 @@ export class RegistrationComponent {
         base64Data: uploadPayload.base64Data
       })
       .subscribe({
-        next: (event) => {
-          // Real progress from actual bytes sent over the XHR request -
-          // never a fake/timer-based percentage.
-          if (event.type === HttpEventType.UploadProgress) {
-            state.progress = event.total ? Math.round((event.loaded / event.total) * 100) : null;
-            return;
-          }
-          if (event.type !== HttpEventType.Response) {
-            return;
-          }
-          const response = event.body;
-          if (response?.success && response.data) {
+        next: (response) => {
+          if (response.success && response.data) {
             state.status = 'uploaded';
             state.fileId = response.data.fileId;
             state.fileUrl = response.data.fileUrl;
             state.errorMessage = null;
-            state.progress = 100;
           } else {
             state.status = 'error';
-            state.errorMessage = response?.message || 'تعذر رفع الصورة';
-            state.progress = null;
+            state.errorMessage = response.message || 'تعذر رفع الصورة';
           }
         },
         error: (err) => {
           state.status = 'error';
           state.errorMessage = toUserFacingApiErrorMessage(err, 'تعذر رفع الصورة، برجاء المحاولة مرة أخرى');
-          state.progress = null;
         }
       });
   }
