@@ -40,6 +40,17 @@
 
     <form class="form" [formGroup]="form" (ngSubmit)="submit()" novalidate>
 
+      <!-- Cancellation policy - informational only, no form control, no effect on validation/payload -->
+      <section class="policy-notice" aria-labelledby="cancellation-policy-title">
+        <h2 class="policy-notice__title" id="cancellation-policy-title">سياسة الإلغاء</h2>
+        <ul class="policy-notice__list">
+          <li>حتي يوم 30 اكتوبر خصم يتم استيراد المبلغ كامل.</li>
+          <li>حتي يوم 8 نوفمبر يتم خصم 50% من اجمالى مبلغ الاشتراك</li>
+          <li>بعد 8 نوفمبر لا يتم استيراد اي مبلغ من الاشتراك</li>
+          <li>الاسترجاع من خلال الخادم الذى تم السداد له</li>
+        </ul>
+      </section>
+
       <!-- SECTION 1: Name -->
       <section class="section">
         <h2 class="section__title"><span class="section__badge">01</span> البيانات الشخصية</h2>

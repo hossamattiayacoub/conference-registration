@@ -279,6 +279,39 @@
   line-height: 1.7;
 }
 
+/* Cancellation policy - informational only, shown before the first form field. */
+.policy-notice {
+  padding: 18px 20px;
+  margin-bottom: 20px;
+  border-radius: var(--radius-md);
+  background: var(--color-accent-soft);
+  border: 1px solid rgba(199, 154, 69, 0.4);
+
+  &__title {
+    margin: 0 0 10px;
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--color-primary-dark);
+  }
+
+  &__list {
+    margin: 0;
+    padding-inline-start: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    list-style: disc;
+
+    li {
+      font-size: 13.5px;
+      font-weight: 500;
+      line-height: 1.7;
+      color: var(--color-text);
+    }
+  }
+}
+
+
 /* Read-only "الطريقة المختارة" summary - أيام الحضور is now chosen on /attendance-selection, not here. */
 .attendance-summary {
   display: flex;
