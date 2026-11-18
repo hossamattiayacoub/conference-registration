@@ -1,11 +1,10 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
-import * as QRCode from 'qrcode';
 import { QrRegistrant } from '../../core/models/qr-broadcast.model';
-import { RegistrationApiService } from '../../core/services/registration-api.service';
-import { toUserFacingApiErrorMessage } from '../../shared/utils/api-error.util';
+import { AdminQrService } from '../../core/services/admin-qr.service';
+import { AdminLoginComponent } from '../../shared/components/admin-login/admin-login.component';
 
 type RowState = 'idle' | 'sending';
 type Filter = 'all' | 'pending' | 'sent' | 'failed';
@@ -22,15 +21,17 @@ type Filter = 'all' | 'pending' | 'sent' | 'failed';
 @Component({
   selector: 'app-send-qr',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule, RouterLink, AdminLoginComponent],
   templateUrl: './send-qr.component.html',
   styleUrl: './send-qr.component.scss'
 })
 export class SendQrComponent {
-  readonly registrants = signal<QrRegistrant[]>([]);
-  readonly missingConfig = signal<string[]>([]);
-  readonly loaded = signal(false);
-  readonly loading = signal(false);
+  private readonly admin = inject(AdminQrService);
+
+  readonly registrants = this.admin.registrants;
+  readonly missingConfig = this.admin.missingConfig;
+  readonly loaded = this.admin.isAuthenticated;
+  readonly loading = this.admin.isLoading;
   readonly loginError = signal<string | null>(null);
   readonly filter = signal<Filter>('all');
 
@@ -41,8 +42,6 @@ export class SendQrComponent {
   readonly bulkRunning = signal(false);
   readonly bulkProgress = signal<{ done: number; total: number; failed: number } | null>(null);
   private stopRequested = false;
-
-  private passcode = '';
 
   readonly counts = computed(() => {
     const list = this.registrants();
@@ -61,8 +60,6 @@ export class SendQrComponent {
     return list;
   });
 
-  constructor(private readonly api: RegistrationApiService) {}
-
   isSent(r: QrRegistrant): boolean {
     return !!r.qrSentAt;
   }
@@ -80,46 +77,16 @@ export class SendQrComponent {
     if (!passcode.trim() || this.loading()) {
       return;
     }
-    this.loading.set(true);
     this.loginError.set(null);
-    this.passcode = passcode;
-    try {
-      const response = await firstValueFrom(this.api.adminListRegistrations(passcode));
-      if (!response.success || !response.data) {
-        this.passcode = '';
-        this.loginError.set(response.message || 'تعذر تحميل البيانات');
-        return;
-      }
-      this.registrants.set(response.data.registrants);
-      this.missingConfig.set(response.data.missingConfig);
-      this.loaded.set(true);
-    } catch (error) {
-      this.passcode = '';
-      this.loginError.set(toUserFacingApiErrorMessage(error));
-    } finally {
-      this.loading.set(false);
-    }
+    this.loginError.set(await this.admin.login(passcode));
   }
 
   async reload(): Promise<void> {
-    this.loading.set(true);
-    try {
-      const response = await firstValueFrom(this.api.adminListRegistrations(this.passcode));
-      if (response.success && response.data) {
-        this.registrants.set(response.data.registrants);
-        this.missingConfig.set(response.data.missingConfig);
-      }
-    } catch {
-      /* keep the current list; the per-row errors still show */
-    } finally {
-      this.loading.set(false);
-    }
+    await this.admin.reload();
   }
 
   logout(): void {
-    this.passcode = '';
-    this.registrants.set([]);
-    this.loaded.set(false);
+    this.admin.logout();
     this.rowError.set({});
     this.rowState.set({});
     this.bulkProgress.set(null);
@@ -130,36 +97,14 @@ export class SendQrComponent {
     if (this.rowState()[registrant.id] === 'sending') {
       return false;
     }
-    if (!registrant.recipient) {
-      this.setRowError(registrant.id, 'لا يوجد رقم واتس اب صالح');
-      return false;
-    }
     this.setRowState(registrant.id, 'sending');
     this.setRowError(registrant.id, null);
-    try {
-      const dataUrl = await QRCode.toDataURL(registrant.id, { width: 512, margin: 2 });
-      const base64 = dataUrl.substring(dataUrl.indexOf(',') + 1);
-      const response = await firstValueFrom(this.api.adminSendQr(this.passcode, registrant.id, base64, force));
-      if (response.success && response.data) {
-        this.patchRegistrant(registrant.id, {
-          qrSentAt: response.data.qrSentAt ?? new Date().toISOString(),
-          qrSendStatus: response.data.qrSendStatus ?? 'SENT'
-        });
-        return true;
-      }
-      if (response.data?.alreadySent) {
-        this.patchRegistrant(registrant.id, { qrSentAt: response.data.qrSentAt ?? 'sent' });
-      } else if (response.data?.qrSendStatus) {
-        this.patchRegistrant(registrant.id, { qrSendStatus: response.data.qrSendStatus });
-      }
-      this.setRowError(registrant.id, response.message || 'فشل الإرسال');
-      return false;
-    } catch (error) {
-      this.setRowError(registrant.id, toUserFacingApiErrorMessage(error));
-      return false;
-    } finally {
-      this.setRowState(registrant.id, 'idle');
+    const result = await this.admin.send(registrant, force);
+    this.setRowState(registrant.id, 'idle');
+    if (!result.ok) {
+      this.setRowError(registrant.id, result.message);
     }
+    return result.ok;
   }
 
   /** Sends to every registrant that was not sent yet and has a valid number, one at a time. */
@@ -205,10 +150,6 @@ export class SendQrComponent {
 
   setFilter(filter: Filter): void {
     this.filter.set(filter);
-  }
-
-  private patchRegistrant(id: string, patch: Partial<QrRegistrant>): void {
-    this.registrants.update((list) => list.map((r) => (r.id === id ? { ...r, ...patch } : r)));
   }
 
   private setRowState(id: string, state: RowState): void {

@@ -1,7 +1,7 @@
 import { Component, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
-import * as QRCode from 'qrcode';
+import { createQrDataUrl } from '../../shared/utils/qr-code.util';
 
 /**
  * Shown after a registration is successfully created (see
@@ -41,7 +41,7 @@ export class RegistrationSuccessComponent {
   private generateQrCode(id: string): void {
     // The QR payload is the bare registration Id as plain text - nothing
     // else (no name, phone, room, or any other personal/registration data).
-    QRCode.toDataURL(id, { width: 260, margin: 2 })
+    createQrDataUrl(id)
       .then((dataUrl) => this.qrCodeDataUrl.set(dataUrl))
       .catch(() => this.qrCodeError.set('تعذر إنشاء رمز QR'));
   }

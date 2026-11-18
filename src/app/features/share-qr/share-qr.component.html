@@ -1,0 +1,83 @@
+<div class="page">
+  <header class="hero">
+    <div class="hero__pattern" aria-hidden="true"></div>
+    <div class="hero__content">
+      <span class="hero__eyebrow">لوحة المشرف</span>
+      <h1 class="hero__title">مشاركة QR على واتس اب</h1>
+      <p class="hero__subtitle">ابحث عن المشارك بالاسم أو رقم التسجيل (ID) ثم اضغط مشاركة</p>
+    </div>
+  </header>
+
+  <main class="card" *ngIf="!isAuthenticated()">
+    <app-admin-login [loading]="isLoading()" [error]="loginError()" (submitted)="login($event)" />
+    <a routerLink="/" class="btn btn--ghost">العودة إلى الصفحة الرئيسية</a>
+  </main>
+
+  <main class="card" *ngIf="isAuthenticated()">
+    <p class="notice notice--warn" *ngIf="missingConfig().length > 0" role="alert">
+      إعدادات واتساب غير مكتملة في Script Properties: {{ missingConfig().join('، ') }}
+    </p>
+    <p class="notice notice--warn" *ngIf="loadError() as err" role="alert">{{ err }}</p>
+
+    <div class="toolbar">
+      <input
+        class="search"
+        type="search"
+        placeholder="ابحث بالاسم أو الـ ID"
+        aria-label="بحث بالاسم أو الـ ID"
+        [value]="query()"
+        (input)="onSearch($event)"
+        autocomplete="off"
+      >
+      <button type="button" class="btn btn--ghost" [disabled]="isLoading()" (click)="reload()">تحديث</button>
+      <button type="button" class="btn btn--ghost" (click)="logout()">خروج</button>
+    </div>
+
+    <p class="count" *ngIf="!isLoading()">{{ results().length }} من {{ registrants().length }}</p>
+
+    <p class="state" *ngIf="isLoading()" role="status">جاري التحميل...</p>
+
+    <p class="state" *ngIf="!isLoading() && registrants().length === 0">لا توجد تسجيلات في الشيت بعد.</p>
+    <p class="state" *ngIf="!isLoading() && registrants().length > 0 && results().length === 0">
+      لا توجد نتائج مطابقة للبحث.
+    </p>
+
+    <div class="grid" role="table" aria-label="قائمة المشاركين" *ngIf="results().length > 0">
+      <div class="grid__head" role="row">
+        <span role="columnheader">الاسم</span>
+        <span role="columnheader">الهاتف</span>
+        <span role="columnheader">مشاركة</span>
+      </div>
+
+      <div class="grid__row" role="row" *ngFor="let r of results(); trackBy: trackById">
+        <span class="cell cell--name" role="cell">
+          {{ r.fullName || '—' }}
+          <small class="cell__id" dir="ltr">{{ r.id }}</small>
+        </span>
+        <span class="cell cell--phone" role="cell" dir="ltr">
+          <ng-container *ngIf="phoneLabel(r) as phone; else noPhone">{{ phone }}</ng-container>
+          <ng-template #noPhone><span class="cell__invalid">رقم غير صالح</span></ng-template>
+        </span>
+        <span class="cell cell--action" role="cell">
+          <button
+            type="button"
+            class="btn btn--primary btn--small"
+            [disabled]="!r.recipient || sendingId() !== null || missingConfig().length > 0"
+            (click)="share(r)"
+          >
+            {{ sendingId() === r.id ? 'جاري الإرسال...' : isSent(r) ? 'إعادة المشاركة' : 'مشاركة' }}
+          </button>
+          <small class="cell__sent" *ngIf="isSent(r)">✓ تم الإرسال</small>
+        </span>
+
+        <p
+          class="feedback"
+          *ngIf="feedback()[r.id] as f"
+          [class.feedback--success]="f.kind === 'success'"
+          [class.feedback--error]="f.kind === 'error'"
+          [attr.role]="f.kind === 'error' ? 'alert' : 'status'"
+        >{{ f.message }}</p>
+      </div>
+    </div>
+  </main>
+</div>

@@ -10,21 +10,7 @@
 
   <!-- Passcode gate -->
   <main class="card" *ngIf="!loaded()">
-    <form class="login" (submit)="$event.preventDefault(); login(pass.value)">
-      <label class="login__label" for="admin-pass">كلمة مرور المشرف</label>
-      <input
-        #pass
-        id="admin-pass"
-        class="login__input"
-        type="password"
-        autocomplete="off"
-        [disabled]="loading()"
-      >
-      <p class="login__error" *ngIf="loginError() as err" role="alert">{{ err }}</p>
-      <button type="submit" class="btn btn--primary btn--lg" [disabled]="loading()">
-        {{ loading() ? 'جاري التحميل...' : 'دخول' }}
-      </button>
-    </form>
+    <app-admin-login [loading]="loading()" [error]="loginError()" (submitted)="login($event)" />
     <a routerLink="/" class="btn btn--ghost">العودة إلى الصفحة الرئيسية</a>
   </main>
 

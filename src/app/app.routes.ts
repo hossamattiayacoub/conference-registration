@@ -4,6 +4,7 @@ import { RegistrationSuccessComponent } from './features/registration-success/re
 import { AttendanceScannerComponent } from './features/attendance-scanner/attendance-scanner.component';
 import { AttendanceSelectionComponent } from './features/attendance-selection/attendance-selection.component';
 import { SendQrComponent } from './features/send-qr/send-qr.component';
+import { ShareQrComponent } from './features/share-qr/share-qr.component';
 import { attendanceSelectedGuard } from './attendance-selected.guard';
 
 export const routes: Routes = [
@@ -13,5 +14,6 @@ export const routes: Routes = [
   { path: 'registration-success', component: RegistrationSuccessComponent },
   { path: 'attendance-scanner', component: AttendanceScannerComponent },
   { path: 'send-qr', component: SendQrComponent },
+  { path: 'share-qr', component: ShareQrComponent },
   { path: '**', redirectTo: '' }
 ];
