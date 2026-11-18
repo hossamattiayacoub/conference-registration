@@ -1,0 +1,122 @@
+<div class="page">
+  <header class="hero">
+    <div class="hero__pattern" aria-hidden="true"></div>
+    <div class="hero__content">
+      <span class="hero__eyebrow">لوحة المشرف</span>
+      <h1 class="hero__title">إرسال QR عبر واتس اب</h1>
+      <p class="hero__subtitle">إرسال رمز QR الخاص بكل مشارك إلى رقمه على واتس اب</p>
+    </div>
+  </header>
+
+  <!-- Passcode gate -->
+  <main class="card" *ngIf="!loaded()">
+    <form class="login" (submit)="$event.preventDefault(); login(pass.value)">
+      <label class="login__label" for="admin-pass">كلمة مرور المشرف</label>
+      <input
+        #pass
+        id="admin-pass"
+        class="login__input"
+        type="password"
+        autocomplete="off"
+        [disabled]="loading()"
+      >
+      <p class="login__error" *ngIf="loginError() as err" role="alert">{{ err }}</p>
+      <button type="submit" class="btn btn--primary btn--lg" [disabled]="loading()">
+        {{ loading() ? 'جاري التحميل...' : 'دخول' }}
+      </button>
+    </form>
+    <a routerLink="/" class="btn btn--ghost">العودة إلى الصفحة الرئيسية</a>
+  </main>
+
+  <!-- Admin view -->
+  <main class="card card--wide" *ngIf="loaded()">
+    <p class="notice notice--warn" *ngIf="missingConfig().length > 0" role="alert">
+      إعدادات واتساب غير مكتملة في Script Properties: {{ missingConfig().join('، ') }}
+    </p>
+
+    <section class="stats" aria-label="ملخص">
+      <button type="button" class="stat" [class.stat--active]="filter() === 'all'" (click)="setFilter('all')">
+        <span class="stat__value">{{ counts().total }}</span><span class="stat__label">الكل</span>
+      </button>
+      <button type="button" class="stat" [class.stat--active]="filter() === 'pending'" (click)="setFilter('pending')">
+        <span class="stat__value">{{ counts().pending }}</span><span class="stat__label">لم يُرسل</span>
+      </button>
+      <button type="button" class="stat" [class.stat--active]="filter() === 'sent'" (click)="setFilter('sent')">
+        <span class="stat__value">{{ counts().sent }}</span><span class="stat__label">تم الإرسال</span>
+      </button>
+      <button type="button" class="stat" [class.stat--active]="filter() === 'failed'" (click)="setFilter('failed')">
+        <span class="stat__value">{{ counts().failed }}</span><span class="stat__label">فشل</span>
+      </button>
+    </section>
+
+    <p class="notice" *ngIf="counts().noNumber > 0">
+      {{ counts().noNumber }} مشارك بدون رقم واتس اب صالح — لن يتم الإرسال إليهم.
+    </p>
+
+    <div class="toolbar">
+      <button
+        type="button"
+        class="btn btn--primary"
+        [disabled]="bulkRunning() || missingConfig().length > 0 || counts().pending === 0"
+        (click)="sendAllPending()"
+      >
+        إرسال لكل من لم يُرسل إليه
+      </button>
+      <button type="button" class="btn btn--ghost" *ngIf="bulkRunning()" (click)="stopBulk()">إيقاف</button>
+      <button type="button" class="btn btn--ghost" [disabled]="loading() || bulkRunning()" (click)="reload()">تحديث</button>
+      <button type="button" class="btn btn--ghost" (click)="logout()">خروج</button>
+    </div>
+
+    <div class="bulk" *ngIf="bulkProgress() as p" role="status">
+      <div class="bulk__bar"><div class="bulk__fill" [style.width.%]="(p.done / p.total) * 100"></div></div>
+      <span class="bulk__text">
+        {{ p.done }} / {{ p.total }}
+        <ng-container *ngIf="p.failed > 0"> — فشل {{ p.failed }}</ng-container>
+        <ng-container *ngIf="!bulkRunning() && p.done === p.total"> — اكتمل الإرسال</ng-container>
+      </span>
+    </div>
+
+    <ul class="list">
+      <li class="row" *ngFor="let r of visibleRegistrants()">
+        <div class="row__main">
+          <span class="row__name">
+            <span class="row__serial" *ngIf="r.serialNo !== null">#{{ r.serialNo }}</span>
+            {{ r.fullName }}
+          </span>
+          <span class="row__phone" dir="ltr">{{ maskedNumber(r) }}</span>
+          <span class="row__source" *ngIf="r.recipient">
+            ({{ r.recipientSource === 'WhatsAppNumber' ? 'رقم الواتس اب' : 'رقم الموبايل' }})
+          </span>
+        </div>
+
+        <div class="row__side">
+          <span class="badge badge--ok" *ngIf="isSent(r)">تم الإرسال</span>
+          <span class="badge badge--bad" *ngIf="isFailed(r)">فشل</span>
+          <span class="badge badge--none" *ngIf="!r.recipient">لا يوجد رقم</span>
+
+          <button
+            type="button"
+            class="btn btn--small"
+            *ngIf="!isSent(r)"
+            [disabled]="!r.recipient || rowState()[r.id] === 'sending' || missingConfig().length > 0 || bulkRunning()"
+            (click)="sendOne(r)"
+          >
+            {{ rowState()[r.id] === 'sending' ? 'جاري الإرسال...' : isFailed(r) ? 'إعادة المحاولة' : 'إرسال' }}
+          </button>
+          <button
+            type="button"
+            class="btn btn--small btn--ghost"
+            *ngIf="isSent(r)"
+            [disabled]="rowState()[r.id] === 'sending' || bulkRunning()"
+            (click)="resend(r)"
+          >
+            إعادة إرسال
+          </button>
+        </div>
+
+        <p class="row__error" *ngIf="rowError()[r.id] as e" role="alert">{{ e }}</p>
+      </li>
+      <li class="empty" *ngIf="visibleRegistrants().length === 0">لا يوجد مشاركون في هذه القائمة.</li>
+    </ul>
+  </main>
+</div>

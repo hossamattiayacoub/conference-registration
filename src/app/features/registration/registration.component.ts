@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { Component, inject, signal } from '@angular/core';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { AbstractControl, FormBuilder, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { finalize } from 'rxjs';
 
@@ -9,6 +9,7 @@ import { ConfigService } from '../../core/services/config.service';
 import { AttendanceSelectionService } from '../../core/services/attendance-selection.service';
 import {
   ATTENDANCE_DAY_OPTIONS,
+  HAS_FRIENDS_ONLY_ALLOWED_VALUE,
   ATTENDANCE_DAYS_OPTIONS,
   GENDER_OPTIONS,
   HAS_FRIENDS_FOR_ACCOMMODATION_OPTIONS,
@@ -27,6 +28,7 @@ import { imageFileValidator } from '../../shared/validators/image-file.validator
 import { notBlankValidator } from '../../shared/validators/not-blank.validator';
 import { fileToUploadPayload } from '../../shared/utils/file-to-base64.util';
 import { toUserFacingApiErrorMessage } from '../../shared/utils/api-error.util';
+import { isSupportedImageFile, UNSUPPORTED_IMAGE_FORMAT_MESSAGE } from '../../shared/utils/image-format.util';
 
 type ImageFieldKey = 'frontIdImage' | 'backIdImage' | 'personalPhoto' | 'carLicense';
 
@@ -45,15 +47,31 @@ interface ImageUploadState {
   fileId: string | null;
   fileUrl: string | null;
   errorMessage: string | null;
+  /**
+   * Set when the person's most recent file selection was rejected for an
+   * unsupported format - independent of `status`, so it can be shown
+   * WITHOUT discarding a previously-successful upload's status/fileId/fileUrl
+   * (rejecting a bad replacement must never make a valid prior upload stop
+   * counting for final submission).
+   */
+  formatErrorMessage: string | null;
 }
 
 function createIdleImageState(): ImageUploadState {
-  return { status: 'idle', fileId: null, fileUrl: null, errorMessage: null };
+  return { status: 'idle', fileId: null, fileUrl: null, errorMessage: null, formatErrorMessage: null };
 }
 
 interface AlertState {
   type: 'success' | 'error' | 'info';
   message: string;
+}
+
+/** Rejects any value other than "لا" for the friends-accommodation question (empty is left to Validators.required). */
+function onlyNoAllowedValidator(control: AbstractControl): ValidationErrors | null {
+  const value = control.value;
+  return value === '' || value === null || value === undefined || value === HAS_FRIENDS_ONLY_ALLOWED_VALUE
+    ? null
+    : { onlyNoAllowed: true };
 }
 
 @Component({
@@ -160,7 +178,7 @@ export class RegistrationComponent {
 
     notes: this.fb.control(''),
     nationalId: this.fb.control('', [Validators.required, nationalIdValidator()]),
-    hasFriendsForAccommodation: this.fb.control('', [Validators.required]),
+    hasFriendsForAccommodation: this.fb.control('', [Validators.required, onlyNoAllowedValidator]),
     roomId: this.fb.control<number | null>(null)
   });
 
@@ -432,7 +450,7 @@ export class RegistrationComponent {
   private setHasFriendsValidators(isRequired: boolean): void {
     const hasFriends = this.form.get('hasFriendsForAccommodation')!;
     if (isRequired) {
-      hasFriends.setValidators([Validators.required]);
+      hasFriends.setValidators([Validators.required, onlyNoAllowedValidator]);
     } else {
       hasFriends.clearValidators();
     }
@@ -590,7 +608,10 @@ export class RegistrationComponent {
       },
       servantName: { required: 'من فضلك اختر الخادم المسؤول' },
       roomId: { required: 'التسكين مطلوب' },
-      hasFriendsForAccommodation: { required: 'اختيار التسكين مع الأصدقاء مطلوب' },
+      hasFriendsForAccommodation: {
+        required: 'اختيار التسكين مع الأصدقاء مطلوب',
+        onlyNoAllowed: 'الإجابة المتاحة هي "لا" فقط'
+      },
       frontIdImage: {
         required: 'صورة البطاقة الأمامية مطلوبة',
         invalidImageType: 'صيغة الصورة غير مدعومة (JPG, PNG, WEBP فقط)',
@@ -684,14 +705,30 @@ export class RegistrationComponent {
   onFileSelected(event: Event, field: ImageFieldKey): void {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0] ?? null;
+    // Reset the native input immediately so selecting the same (rejected or
+    // accepted) file again later still fires a fresh "change" event.
+    input.value = '';
     if (!file) {
       return;
     }
+
+    if (!isSupportedImageFile(file)) {
+      // Reject immediately - before touching the form control, the preview,
+      // or starting any upload. Deliberately does NOT call
+      // createIdleImageState() here: if a previous file for this slot
+      // already uploaded successfully, that status/fileId/fileUrl must stay
+      // exactly as-is (still the latest successful upload, still valid for
+      // final submission) - only the rejection notice is set.
+      this.imageUploads[field].formatErrorMessage = UNSUPPORTED_IMAGE_FORMAT_MESSAGE;
+      return;
+    }
+
     this.form.get(field)!.setValue(file);
     this.form.get(field)!.markAsTouched();
 
-    // A newly selected file has not been uploaded yet - reset this slot's
-    // upload state before immediately starting the upload below.
+    // A newly selected (valid) file has not been uploaded yet - reset this
+    // slot's upload state (this also clears any prior formatErrorMessage)
+    // before immediately starting the upload below.
     this.imageUploads[field] = createIdleImageState();
 
     const reader = new FileReader();
@@ -723,6 +760,15 @@ export class RegistrationComponent {
 
     const state = this.imageUploads[field];
     if (state.status === 'uploading') {
+      return;
+    }
+
+    // Defense-in-depth: onFileSelected() already rejects an unsupported
+    // format before this is ever called, but this method isn't private, so
+    // it's re-checked here too rather than trusting the caller.
+    if (!isSupportedImageFile(file)) {
+      state.status = 'error';
+      state.errorMessage = UNSUPPORTED_IMAGE_FORMAT_MESSAGE;
       return;
     }
 

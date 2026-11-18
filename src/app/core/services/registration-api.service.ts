@@ -4,6 +4,7 @@ import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { ApiResponse } from '../models/api-response.model';
 import { AttendanceResponse } from '../models/attendance.model';
+import { QrRegistrantsResult, SendQrResult } from '../models/qr-broadcast.model';
 import {
   Registration,
   RegistrationSubmitPayload,
@@ -95,6 +96,24 @@ export class RegistrationApiService {
     return this.http.post<ApiResponse<UploadImageResult>>(
       this.apiUrl,
       JSON.stringify({ action: 'uploadImage', data: request }),
+      this.postOptions
+    );
+  }
+
+  /** Admin: loads every registrant + QR send status (passcode checked server-side). */
+  adminListRegistrations(passcode: string): Observable<ApiResponse<QrRegistrantsResult>> {
+    return this.http.post<ApiResponse<QrRegistrantsResult>>(
+      this.apiUrl,
+      JSON.stringify({ action: 'adminListRegistrations', data: { passcode } }),
+      this.postOptions
+    );
+  }
+
+  /** Admin: sends one registrant their QR (PNG base64, no data: prefix) via WhatsApp Cloud API. */
+  adminSendQr(passcode: string, id: string, imageBase64: string, force = false): Observable<ApiResponse<SendQrResult>> {
+    return this.http.post<ApiResponse<SendQrResult>>(
+      this.apiUrl,
+      JSON.stringify({ action: 'adminSendQr', data: { passcode, id, imageBase64, force } }),
       this.postOptions
     );
   }

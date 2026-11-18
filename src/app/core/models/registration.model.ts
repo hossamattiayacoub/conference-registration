@@ -55,9 +55,11 @@ export const MARRIED_SPOUSE_BOOKED_OPTIONS: { value: string; label: string }[] =
  * الغرفه؟" - gates whether the room-selection dropdown (RoomId) is shown/required.
  */
 export const HAS_FRIENDS_FOR_ACCOMMODATION_OPTIONS: { value: string; label: string }[] = [
-  { value: 'نعم', label: 'نعم' },
   { value: 'لا', label: 'لا' }
 ];
+
+/** The only accepted answer for the friends-accommodation question ("نعم" is no longer offered or accepted). */
+export const HAS_FRIENDS_ONLY_ALLOWED_VALUE = 'لا';
 
 /** "هل رقم الموبيل به واتس اب" - gates whether WhatsAppNumber is shown/required. */
 export const HAS_WHATSAPP_OPTIONS: { value: string; label: string }[] = [

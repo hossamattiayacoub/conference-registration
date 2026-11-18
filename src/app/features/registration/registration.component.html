@@ -51,6 +51,20 @@
         </ul>
       </section>
 
+      <!-- Conference instructions - informational only, no form control, no effect on validation/payload -->
+      <section class="instructions-notice" aria-labelledby="conference-instructions-title">
+        <h2 class="instructions-notice__title" id="conference-instructions-title">📌 تعليمات المؤتمر ❤️🙏🏻</h2>
+        <p class="instructions-notice__text">رايحين المؤتمر باسم شفيع أسرتنا البابا أثناسيوس، وباسم أسقفية الشباب، وبصلواته يدبّر الله كل شيء 🙏🏻</p>
+        <p class="instructions-notice__text">فنستأذنكم نلتزم مع بعض بالآتي:</p>
+        <ul class="instructions-notice__list">
+          <li>👕 <strong>المظهر الخارجي:</strong> مظهر يليق بأولاد وبنات الكنيسة.</li>
+          <li>⏰ <strong>النظام والمواعيد:</strong> الالتزام بتعليمات المسؤولين ومواعيد الباصات والمحاضرات والوجبات.</li>
+          <li>❤️ <strong>السلوك المسيحي:</strong> المحبة والاحترام في تعاملاتنا مع بعض.</li>
+          <li>🤝 <strong>الحفاظ على المكان:</strong> نفتكر دايمًا إننا بنمثّل كنيستنا في كل تصرفاتنا.</li>
+        </ul>
+        <p class="instructions-notice__text instructions-notice__text--closing">ربنا يبارك مؤتمرنا، وتكون أيام مليانة فرح ومحبة وبركة 😍🙏🏻</p>
+      </section>
+
       <!-- SECTION 1: Name -->
       <section class="section">
         <h2 class="section__title"><span class="section__badge">01</span> البيانات الشخصية</h2>
@@ -259,14 +273,14 @@
               <div class="upload-box__area">
                 <img *ngIf="previews.carLicense" [src]="previews.carLicense" alt="معاينة صورة الرخصة">
                 <label class="upload-box__cta" *ngIf="!previews.carLicense">
-                  <input type="file" accept="image/png,image/jpeg,image/webp" (change)="onFileSelected($event, 'carLicense')" hidden>
+                  <input type="file" accept="image/jpeg,image/jpg,image/png,image/webp,.jpg,.jpeg,.png,.webp" (change)="onFileSelected($event, 'carLicense')" hidden>
                   اختر صورة
                 </label>
               </div>
               <div class="upload-box__actions" *ngIf="previews.carLicense">
                 <label class="btn btn--ghost btn--sm">
                   تغيير الصورة
-                  <input type="file" accept="image/png,image/jpeg,image/webp" (change)="onFileSelected($event, 'carLicense')" hidden>
+                  <input type="file" accept="image/jpeg,image/jpg,image/png,image/webp,.jpg,.jpeg,.png,.webp" (change)="onFileSelected($event, 'carLicense')" hidden>
                 </label>
                 <button type="button" class="btn btn--danger-ghost btn--sm" (click)="removeImage('carLicense')">إزالة</button>
               </div>
@@ -282,6 +296,7 @@
                 <small class="error" *ngIf="imageUploads.carLicense.status === 'stale'">تم تغيير الاسم، برجاء إعادة رفع الصورة</small>
                 <small class="error" *ngIf="imageUploads.carLicense.status === 'error' && imageUploads.carLicense.errorMessage">{{ imageUploads.carLicense.errorMessage }}</small>
               </div>
+              <small class="error" *ngIf="imageUploads.carLicense.formatErrorMessage">{{ imageUploads.carLicense.formatErrorMessage }}</small>
             </ng-container>
 
             <small class="error" *ngIf="errorFor('carLicense')">{{ errorFor('carLicense') }}</small>
@@ -319,14 +334,14 @@
               <div class="upload-box__area">
                 <img *ngIf="previews.frontIdImage" [src]="previews.frontIdImage" alt="معاينة صورة البطاقة الأمامية">
                 <label class="upload-box__cta" *ngIf="!previews.frontIdImage">
-                  <input type="file" accept="image/png,image/jpeg,image/webp" (change)="onFileSelected($event, 'frontIdImage')" hidden>
+                  <input type="file" accept="image/jpeg,image/jpg,image/png,image/webp,.jpg,.jpeg,.png,.webp" (change)="onFileSelected($event, 'frontIdImage')" hidden>
                   اختر صورة
                 </label>
               </div>
               <div class="upload-box__actions" *ngIf="previews.frontIdImage">
                 <label class="btn btn--ghost btn--sm">
                   تغيير الصورة
-                  <input type="file" accept="image/png,image/jpeg,image/webp" (change)="onFileSelected($event, 'frontIdImage')" hidden>
+                  <input type="file" accept="image/jpeg,image/jpg,image/png,image/webp,.jpg,.jpeg,.png,.webp" (change)="onFileSelected($event, 'frontIdImage')" hidden>
                 </label>
                 <button type="button" class="btn btn--danger-ghost btn--sm" (click)="removeImage('frontIdImage')">إزالة</button>
               </div>
@@ -342,6 +357,7 @@
                 <small class="error" *ngIf="imageUploads.frontIdImage.status === 'stale'">تم تغيير الاسم، برجاء إعادة رفع الصورة</small>
                 <small class="error" *ngIf="imageUploads.frontIdImage.status === 'error' && imageUploads.frontIdImage.errorMessage">{{ imageUploads.frontIdImage.errorMessage }}</small>
               </div>
+              <small class="error" *ngIf="imageUploads.frontIdImage.formatErrorMessage">{{ imageUploads.frontIdImage.formatErrorMessage }}</small>
             </ng-container>
 
             <small class="error" *ngIf="errorFor('frontIdImage')">{{ errorFor('frontIdImage') }}</small>
@@ -356,14 +372,14 @@
               <div class="upload-box__area">
                 <img *ngIf="previews.backIdImage" [src]="previews.backIdImage" alt="معاينة صورة البطاقة الخلفية">
                 <label class="upload-box__cta" *ngIf="!previews.backIdImage">
-                  <input type="file" accept="image/png,image/jpeg,image/webp" (change)="onFileSelected($event, 'backIdImage')" hidden>
+                  <input type="file" accept="image/jpeg,image/jpg,image/png,image/webp,.jpg,.jpeg,.png,.webp" (change)="onFileSelected($event, 'backIdImage')" hidden>
                   اختر صورة
                 </label>
               </div>
               <div class="upload-box__actions" *ngIf="previews.backIdImage">
                 <label class="btn btn--ghost btn--sm">
                   تغيير الصورة
-                  <input type="file" accept="image/png,image/jpeg,image/webp" (change)="onFileSelected($event, 'backIdImage')" hidden>
+                  <input type="file" accept="image/jpeg,image/jpg,image/png,image/webp,.jpg,.jpeg,.png,.webp" (change)="onFileSelected($event, 'backIdImage')" hidden>
                 </label>
                 <button type="button" class="btn btn--danger-ghost btn--sm" (click)="removeImage('backIdImage')">إزالة</button>
               </div>
@@ -379,6 +395,7 @@
                 <small class="error" *ngIf="imageUploads.backIdImage.status === 'stale'">تم تغيير الاسم، برجاء إعادة رفع الصورة</small>
                 <small class="error" *ngIf="imageUploads.backIdImage.status === 'error' && imageUploads.backIdImage.errorMessage">{{ imageUploads.backIdImage.errorMessage }}</small>
               </div>
+              <small class="error" *ngIf="imageUploads.backIdImage.formatErrorMessage">{{ imageUploads.backIdImage.formatErrorMessage }}</small>
             </ng-container>
 
             <small class="error" *ngIf="errorFor('backIdImage')">{{ errorFor('backIdImage') }}</small>
@@ -399,7 +416,7 @@
           </div>
           <label class="btn btn--primary btn--sm">
             {{ previews.personalPhoto ? 'تغيير الصورة' : 'رفع صورة شخصية' }}
-            <input type="file" accept="image/png,image/jpeg,image/webp" (change)="onFileSelected($event, 'personalPhoto')" hidden>
+            <input type="file" accept="image/jpeg,image/jpg,image/png,image/webp,.jpg,.jpeg,.png,.webp" (change)="onFileSelected($event, 'personalPhoto')" hidden>
           </label>
 
           <div class="upload-status" *ngIf="previews.personalPhoto">
@@ -413,6 +430,7 @@
             <small class="error" *ngIf="imageUploads.personalPhoto.status === 'stale'">تم تغيير الاسم، برجاء إعادة رفع الصورة</small>
             <small class="error" *ngIf="imageUploads.personalPhoto.status === 'error' && imageUploads.personalPhoto.errorMessage">{{ imageUploads.personalPhoto.errorMessage }}</small>
           </div>
+              <small class="error" *ngIf="imageUploads.personalPhoto.formatErrorMessage">{{ imageUploads.personalPhoto.formatErrorMessage }}</small>
 
           <small class="error" *ngIf="errorFor('personalPhoto')">{{ errorFor('personalPhoto') }}</small>
         </div>

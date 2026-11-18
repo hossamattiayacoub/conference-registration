@@ -3,6 +3,7 @@ import { RegistrationComponent } from './features/registration/registration.comp
 import { RegistrationSuccessComponent } from './features/registration-success/registration-success.component';
 import { AttendanceScannerComponent } from './features/attendance-scanner/attendance-scanner.component';
 import { AttendanceSelectionComponent } from './features/attendance-selection/attendance-selection.component';
+import { SendQrComponent } from './features/send-qr/send-qr.component';
 import { attendanceSelectedGuard } from './attendance-selected.guard';
 
 export const routes: Routes = [
@@ -11,5 +12,6 @@ export const routes: Routes = [
   { path: 'registration', component: RegistrationComponent, canActivate: [attendanceSelectedGuard] },
   { path: 'registration-success', component: RegistrationSuccessComponent },
   { path: 'attendance-scanner', component: AttendanceScannerComponent },
+  { path: 'send-qr', component: SendQrComponent },
   { path: '**', redirectTo: '' }
 ];
