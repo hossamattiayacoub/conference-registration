@@ -5,7 +5,8 @@
     "ng": "ng",
     "start": "ng serve",
     "build": "ng build",
-    "watch": "ng build --watch --configuration development"
+    "watch": "ng build --watch --configuration development",
+    "postbuild": "node -e \"const fs=require('fs');const d='dist/conference-registration/browser/';fs.copyFileSync(d+'index.html',d+'404.html')\""
   },
   "private": true,
   "dependencies": {

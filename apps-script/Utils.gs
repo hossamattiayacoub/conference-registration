@@ -300,7 +300,8 @@ function validateRegistration(data, isUpdate) {
   // accommodation section is never displayed, so nothing here is required
   // and RoomId must stay empty.
   if (data.MarriedAndYourSpousebookInConference === 'لا') {
-    const hasFriendsValues = ['نعم', 'لا'];
+    // Only "لا" is accepted - the "نعم" option was removed from the form.
+    const hasFriendsValues = ['لا'];
     if (hasFriendsValues.indexOf(data.HasFriendsForAccommodation) === -1) {
       return { valid: false, message: 'اختيار التسكين مع الأصدقاء مطلوب' };
     }

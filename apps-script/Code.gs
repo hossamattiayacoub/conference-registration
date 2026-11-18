@@ -61,6 +61,14 @@ function doPost(e) {
       return jsonOutput_(uploadImageAction(data));
     }
 
+    if (action === 'adminListRegistrations') {
+      return jsonOutput_(adminListRegistrations(data));
+    }
+
+    if (action === 'adminSendQr') {
+      return jsonOutput_(adminSendQr(data));
+    }
+
     return jsonOutput_(createApiResponse(false, 'إجراء غير معروف', null));
   } catch (err) {
     return jsonOutput_(createApiResponse(false, 'حدث خطأ في الخادم: ' + err.message, null));

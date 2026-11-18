@@ -137,3 +137,32 @@ export const SERVANT_OPTIONS: string[] = [
 ```
 
 أضف/احذف أسماء من هذه المصفوفة فقط، وستظهر التغييرات تلقائيًا في الاستمارة.
+
+---
+
+## إرسال QR عبر WhatsApp Cloud API (صفحة المشرف `/send-qr`)
+
+الصفحة تقرأ المسجلين من شيت `Registeration`، وتولّد QR لكل شخص (يحمل الـ `Id` فقط، مثل صفحة النجاح)،
+وتُرسله عبر WhatsApp Cloud API إلى `Mobile`، أو إلى `WhatsAppNumber` عندما `HasWhatsApp = "لا"`.
+تتبّع الإرسال يتم في عمودين جديدين يُضافان تلقائيًا: `QrSentAt` و `QrSendStatus` (لا يُرسل لنفس الشخص مرتين إلا بـ "إعادة إرسال").
+
+**Script Properties** (Apps Script > Project Settings > Script properties) — الأسرار لا توجد في الكود ولا في Angular:
+
+| Property | الوصف |
+|---|---|
+| `ADMIN_PASSCODE` | كلمة المرور المطلوبة في صفحة `/send-qr` |
+| `WA_ACCESS_TOKEN` | System User token دائم من Meta |
+| `WA_PHONE_NUMBER_ID` | Phone Number ID |
+| `WA_TEMPLATE_NAME` | اسم القالب المعتمد (Utility، Header = Image، Body به متغير واحد `{{1}}` = الاسم الكامل) |
+| `WA_TEMPLATE_LANG` | كود لغة القالب (الافتراضي `ar`) |
+| `WA_GRAPH_VERSION` | اختياري (الافتراضي `v23.0`) |
+
+بعد تعديل السكربت: Deploy > Manage deployments > Edit > New version (نفس الرابط).
+افتح `https://<your-site>/send-qr` — الصفحة غير مرتبطة من أي مكان آخر.
+
+### صفحة `/share-qr` (مشاركة QR لشخص واحد)
+
+جدول (الاسم | الهاتف | مشاركة) يقرأ من شيت `Registeration` مع بحث بالاسم (جزئي، لا يتأثر بحالة الأحرف أو الهمزات) أو بالـ ID.
+زر "مشاركة" يولّد QR من الـ ID فقط (نفس دالة صفحة النجاح: `shared/utils/qr-code.util.ts`) ويرسله كصورة عبر
+نفس تكامل WhatsApp Cloud API الموجود (`WhatsApp.gs`) — لا يوجد تغيير في Apps Script. نفس كلمة مرور المشرف
+وإعدادات Script Properties المذكورة أعلاه.

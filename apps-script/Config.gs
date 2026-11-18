@@ -76,7 +76,11 @@ const CONFIG = {
     'HasFriendsForAccommodation',
     'RoomId',
     'CreatedAt',
-    'UpdatedAt'
+    'UpdatedAt',
+    // Written only by the admin QR-broadcast page (WhatsApp.gs). Appended
+    // automatically to the sheet by ensureColumnsExist_ - nothing is renamed.
+    'QrSentAt',
+    'QrSendStatus'
   ],
 
   MAX_IMAGE_SIZE_BYTES: 10 * 1024 * 1024,
